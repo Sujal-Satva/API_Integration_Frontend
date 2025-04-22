@@ -271,7 +271,7 @@ export const Vendors: React.FC = () => {
                 icon={<ShopOutlined />}
                 onClick={() => {
                   showModal();
-                  setSelectedVendor(record.vId);
+                  setSelectedVendor(record.id);
                 }}
               />
             </>

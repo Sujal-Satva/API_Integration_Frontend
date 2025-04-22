@@ -1,6 +1,15 @@
-import React, { useState, useEffect } from "react";
-import { Typography, Input, Button, Form, message } from "antd";
-import { DownloadOutlined } from "@ant-design/icons";
+import React, { useState, useEffect, useRef } from "react";
+import {
+  Typography,
+  Input,
+  Button,
+  Form,
+  message,
+  Upload,
+  Modal,
+  Table,
+} from "antd";
+import { DownloadOutlined, UploadOutlined } from "@ant-design/icons";
 import moment from "moment";
 import InvoiceTable from "./../components/InvoiceTable";
 import InvoiceViewModal from "./../components/InvoiceViewModal";
@@ -14,7 +23,7 @@ import {
   deleteInvoice as deleteInvoiceApi,
   syncInvoices,
 } from "./../services/invoiceService";
-
+import Papa from "papaparse";
 import {
   Invoice as InvoiceType,
   Customer,
@@ -23,6 +32,8 @@ import {
   PaginationParams,
   SorterParams,
   InvoiceFormValues,
+  InvoiceRow,
+  CSVError,
 } from "./../interfaces";
 
 const calculateTotal = (items: LineItem[]) => {
@@ -324,11 +335,141 @@ export const Invoice: React.FC = () => {
       message.success("Invoices downloaded successfully!");
       loadInvoices();
     } catch (error) {
+      console.log(error);
       message.error("Failed to download invoices.");
     } finally {
       setInvoiceLoading(false);
     }
   };
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const API_URL = import.meta.env.VITE_API_URL;
+  const handleCSVUpload = (file: File) => {
+    Papa.parse<InvoiceRow>(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        const data = results.data;
+        const validationErrors = validateCSVRows(data);
+        if (validationErrors.length > 0) {
+          setErrors(validationErrors);
+          setIsModalVisible(true);
+        } else {
+          setErrors([]);
+          setIsModalVisible(false);
+          message.loading("File Uploading...");
+
+          const formData = new FormData();
+          formData.append("file", file);
+
+          try {
+            const token = localStorage.getItem("qb_access_token");
+            const realmId = localStorage.getItem("qb_realm_id");
+            const response = await fetch(
+              `${API_URL}/api/Invoice/upload-csv?realmId=${realmId}`,
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${token}`, 
+                },
+                body: formData,
+              }
+            );
+
+            const result = await response.json();
+
+            if (response.ok) {
+              message.success("CSV uploaded and processed successfully!");
+              console.log("Server response:", result);
+            } else {
+              message.error("CSV upload failed.");
+              console.error("Server error:", result);
+            }
+          } catch (error) {
+            console.error("Upload failed:", error);
+            message.error("Failed to upload CSV file.");
+          }
+        }
+      },
+
+      error: (err) => {
+        message.info("CSV Parse Error");
+        console.error("CSV Parse Error:", err);
+      },
+    });
+
+    return false;
+  };
+
+  const [errors, setErrors] = useState<CSVError[]>([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const validateCSVRows = (rows: InvoiceRow[]): CSVError[] => {
+    const invoiceSet = new Set();
+    const errors: CSVError[] = [];
+
+    rows.forEach((row, index) => {
+      const rowNum = index + 2;
+
+      if (!row.InvoiceNumber) {
+        errors.push({ row: rowNum, message: "InvoiceNumber is required." });
+      } else if (invoiceSet.has(row.InvoiceNumber)) {
+        errors.push({ row: rowNum, message: "Duplicate Invoice Number." });
+      } else {
+        invoiceSet.add(row.InvoiceNumber);
+      }
+
+      if (!row.CustomerName) {
+        errors.push({ row: rowNum, message: "CustomerName is required." });
+      }
+
+      if (
+        row.CustomerEmail &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.CustomerEmail)
+      ) {
+        errors.push({ row: rowNum, message: "Invalid email format." });
+      }
+
+      if (isNaN(Date.parse(row.InvoiceDate))) {
+        errors.push({ row: rowNum, message: "Invalid InvoiceDate." });
+      }
+
+      if (isNaN(Date.parse(row.DueDate))) {
+        errors.push({ row: rowNum, message: "Invalid DueDate." });
+      }
+
+      if (!row.ItemName) {
+        errors.push({ row: rowNum, message: "ItemName is required." });
+      }
+
+      if (!row.ItemDescription) {
+        errors.push({ row: rowNum, message: "ItemDescription is required." });
+      }
+
+      if (
+        !row.Quantity ||
+        isNaN(Number(row.Quantity)) ||
+        Number(row.Quantity) <= 0
+      ) {
+        errors.push({
+          row: rowNum,
+          message: "Quantity must be a positive number.",
+        });
+      }
+
+      if (!row.Rate || isNaN(Number(row.Rate)) || Number(row.Rate) < 0) {
+        errors.push({
+          row: rowNum,
+          message: "Rate must be a non-negative number.",
+        });
+      }
+    });
+
+    return errors;
+  };
+
+  const columns = [
+    { title: "Row", dataIndex: "row", key: "row" },
+    { title: "Error Message", dataIndex: "message", key: "message" },
+  ];
 
   return (
     <>
@@ -361,6 +502,46 @@ export const Invoice: React.FC = () => {
           >
             Sync Invoices
           </Button>
+
+          <Upload
+            accept=".csv"
+            beforeUpload={handleCSVUpload}
+            showUploadList={false}
+          >
+            <Button
+              icon={<UploadOutlined />}
+              type="primary"
+              style={{ marginLeft: 8 }}
+            >
+              Upload CSV File
+            </Button>
+          </Upload>
+
+          <Modal
+            title="CSV Validation Errors"
+            open={isModalVisible}
+            onOk={() => setIsModalVisible(false)}
+            onCancel={() => setIsModalVisible(false)}
+            width={600}
+          >
+            <Table
+              columns={columns}
+              dataSource={errors}
+              rowKey={(record, index) => index.toString()}
+              pagination={false}
+              size="small"
+            />
+          </Modal>
+          <input
+            type="file"
+            accept=".csv" // Allow only .csv files
+            ref={fileInputRef}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleCSVUpload(file);
+            }}
+            style={{ display: "none" }}
+          />
         </div>
       </div>
 

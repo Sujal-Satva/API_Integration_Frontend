@@ -1,4 +1,3 @@
-// utils.ts
 import dayjs from "dayjs";
 import {
   CategoryDetail,
@@ -149,3 +148,10 @@ export const getQuickBooksAuth = () => {
 
   return { token, realmId };
 };
+
+export const isValidEmail = (email: string): boolean =>
+  /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+export const isValidDate = (date: string): boolean => !isNaN(Date.parse(date));
+
+export const isNumeric = (value: string): boolean => !isNaN(Number(value));

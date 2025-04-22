@@ -48,7 +48,7 @@ interface BillFormProps {
   customers: Customer[];
   onCancel: () => void;
   onSuccess: () => void;
-  selectedVendorFromVendor: string;
+  selectedVendorFromVendor?: string;
   loading: boolean;
   setLoading: (loading: boolean) => void;
 }
@@ -65,8 +65,9 @@ const BillForm: FC<BillFormProps> = ({
 }) => {
   const [form] = Form.useForm();
   const [selectedVendor, setSelectedVendor] = useState<string | null>(
-    selectedVendorFromVendor != "" ? selectedVendorFromVendor : null
+    selectedVendorFromVendor !== "" ? selectedVendorFromVendor : null
   );
+  console.log(selectedVendorFromVendor);
   const [vendorAddress, setVendorAddress] = useState<string>("");
   const [categoryDetails, setCategoryDetails] = useState<CategoryDetail[]>([
     {
@@ -97,6 +98,7 @@ const BillForm: FC<BillFormProps> = ({
   }, [form]);
 
   const handleVendorChange = (value: number) => {
+    console.log(value,"vendot");
     const selectedVendorData = vendors.find((v) => v.id == value);
     if (selectedVendorData) {
       setSelectedVendor(selectedVendorData.vId);
@@ -539,8 +541,9 @@ const BillForm: FC<BillFormProps> = ({
               placeholder="Select Vendor"
               onChange={handleVendorChange}
               showSearch
-              value={selectedVendor}
               optionFilterProp="children"
+              value={selectedVendor}
+              // defaultValue={parseInt(selectedVendor)}
             >
               {vendors.map((vendor) => (
                 <Option key={vendor.id} value={vendor.id}>

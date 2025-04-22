@@ -304,3 +304,19 @@ export interface ApiResponse<T> {
   totalRecords?: number;
   error?: string;
 }
+
+export type InvoiceRow = {
+  InvoiceNumber: string;
+  CustomerName: string;
+  CustomerEmail?: string;
+  InvoiceDate: string;
+  DueDate: string;
+  ItemName: string;
+  ItemDescription: string;
+  Quantity: string;
+  Rate: string;
+};
+export type CSVError = {
+  row: number;
+  message: string;
+};
