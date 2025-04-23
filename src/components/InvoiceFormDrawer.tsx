@@ -1,8 +1,25 @@
-import React from 'react';
-import { Drawer, Form, Select, Input, DatePicker, Button, Row, Col, Table, Typography } from 'antd';
-import moment from 'moment';
-import { Invoice, Customer, Product, LineItem, InvoiceFormValues } from './../interfaces';
-import { DeleteOutlined } from '@ant-design/icons';
+import React from "react";
+import {
+  Drawer,
+  Form,
+  Select,
+  Input,
+  DatePicker,
+  Button,
+  Row,
+  Col,
+  Table,
+  Typography,
+} from "antd";
+import moment from "moment";
+import {
+  Invoice,
+  Customer,
+  Product,
+  LineItem,
+  InvoiceFormValues,
+} from "./../interfaces";
+import { DeleteOutlined } from "@ant-design/icons";
 
 const { Text } = Typography;
 
@@ -23,9 +40,9 @@ interface InvoiceFormDrawerProps {
   lineItemsError: string;
 }
 const calculateTotal = (items: LineItem[]) => {
-    const subtotal = items.reduce((acc, item) => acc + (item.amount || 0), 0);
-    return { subtotal, total: subtotal };
-  };
+  const subtotal = items.reduce((acc, item) => acc + (item.amount || 0), 0);
+  return { subtotal, total: subtotal };
+};
 
 const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
   visible,
@@ -45,29 +62,29 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
 }) => {
   const lineItemColumns = [
     {
-      title: 'Product',
-      dataIndex: 'productId',
-      width: '25%',
+      title: "Product",
+      dataIndex: "productId",
+      width: "25%",
       render: (_: any, record: LineItem, index: number) => {
         // const selectedProduct = products.find((p) => p.qbItemId === record.productId?.toString());
         return (
           <Form.Item
             style={{ margin: 0 }}
-            validateStatus={!record.productId ? 'error' : ''}
-            help={!record.productId ? 'Required' : ''}
+            validateStatus={!record.productId ? "error" : ""}
+            help={!record.productId ? "Required" : ""}
           >
             <Select
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               placeholder="Select Product"
               value={record.productId}
-              status={!record.productId ? 'error' : undefined}
+              status={!record.productId ? "error" : undefined}
               onChange={(value) => {
                 const product = products.find((p) => p.qbItemId == value);
                 const updated = [...lineItems];
                 updated[index] = {
                   ...record,
                   productId: product?.qbItemId,
-                  description: product?.name || '',
+                  description: product?.name || "",
                   rate: product?.unitPrice || 0,
                   amount: (record.quantity || 1) * (product?.unitPrice || 0),
                 };
@@ -83,17 +100,17 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
       },
     },
     {
-      title: 'Description',
-      dataIndex: 'description',
+      title: "Description",
+      dataIndex: "description",
       render: (_: any, record: LineItem, index: number) => (
         <Form.Item
           style={{ margin: 0 }}
-          validateStatus={!record.description ? 'error' : ''}
-          help={!record.description ? 'Required' : ''}
+          validateStatus={!record.description ? "error" : ""}
+          help={!record.description ? "Required" : ""}
         >
           <Input
             value={record.description}
-            status={!record.description ? 'error' : undefined}
+            status={!record.description ? "error" : undefined}
             onChange={(e) => {
               const updated = [...lineItems];
               updated[index].description = e.target.value;
@@ -104,19 +121,23 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
       ),
     },
     {
-      title: 'Quantity',
-      dataIndex: 'quantity',
+      title: "Quantity",
+      dataIndex: "quantity",
       render: (_: any, record: LineItem, index: number) => (
         <Form.Item
           style={{ margin: 0 }}
-          validateStatus={!record.quantity || record.quantity <= 0 ? 'error' : ''}
-          help={!record.quantity || record.quantity <= 0 ? 'Invalid' : ''}
+          validateStatus={
+            !record.quantity || record.quantity <= 0 ? "error" : ""
+          }
+          help={!record.quantity || record.quantity <= 0 ? "Invalid" : ""}
         >
           <Input
             type="number"
             min={1}
             value={record.quantity}
-            status={!record.quantity || record.quantity <= 0 ? 'error' : undefined}
+            status={
+              !record.quantity || record.quantity <= 0 ? "error" : undefined
+            }
             onChange={(e) => {
               const updated = [...lineItems];
               const quantity = parseFloat(e.target.value) || 0;
@@ -129,8 +150,8 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
       ),
     },
     {
-      title: 'Rate',
-      dataIndex: 'rate',
+      title: "Rate",
+      dataIndex: "rate",
       render: (_: any, record: LineItem, index: number) => (
         <Input
           type="number"
@@ -147,14 +168,14 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
       ),
     },
     {
-      title: 'Amount',
-      dataIndex: 'amount',
+      title: "Amount",
+      dataIndex: "amount",
       render: (_: any, record: LineItem) => (
         <span>${(record.amount || 0).toFixed(2)}</span>
       ),
     },
     {
-      title: 'Remove',
+      title: "Remove",
       render: (_: any, __: any, index: number) => (
         <Button danger onClick={() => handleRemoveLineItem(index)}>
           <DeleteOutlined />
@@ -165,12 +186,12 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
 
   return (
     <Drawer
-      title={editingInvoice ? 'Edit Invoice' : 'New Invoice'}
+      title={editingInvoice ? "Edit Invoice" : "New Invoice"}
       open={visible}
       onClose={onClose}
       width={1200}
       footer={
-        <div style={{ textAlign: 'right' }}>
+        <div style={{ textAlign: "right" }}>
           <Button onClick={onClose} style={{ marginRight: 8 }}>
             Cancel
           </Button>
@@ -186,8 +207,8 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
         onFinish={onFinish}
         initialValues={{
           invoiceDate: moment(),
-          dueDate: moment().add(30, 'days'),
-          store: 'Main Store',
+          dueDate: moment().add(30, "days"),
+          store: "Main Store",
         }}
       >
         <Row gutter={16}>
@@ -195,13 +216,13 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
             <Form.Item
               label="Customer"
               name="customer"
-              rules={[{ required: true, message: 'Please select a customer' }]}
+              rules={[{ required: true, message: "Please select a customer" }]}
             >
               <Select
                 placeholder="Select Customer"
                 onChange={handleCustomerChange}
                 options={customers.map((c) => ({
-                  value: c.id,
+                  value: c.qbId,
                   label: c.displayName,
                 }))}
               />
@@ -211,7 +232,7 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
             <Form.Item
               label="Customer Email"
               name="customerEmail"
-              rules={[{ type: 'email', message: 'Invalid email format' }]}
+              rules={[{ type: "email", message: "Invalid email format" }]}
             >
               <Input disabled />
             </Form.Item>
@@ -220,29 +241,29 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
             <Form.Item
               label="Invoice Date"
               name="invoiceDate"
-              rules={[{ required: true, message: 'Invoice date is required' }]}
+              rules={[{ required: true, message: "Invoice date is required" }]}
             >
-              <DatePicker style={{ width: '100%' }} />
+              <DatePicker style={{ width: "100%" }} />
             </Form.Item>
           </Col>
           <Col span={12}>
             <Form.Item
               label="Due Date"
               name="dueDate"
-              rules={[{ required: true, message: 'Due date is required' }]}
+              rules={[{ required: true, message: "Due date is required" }]}
             >
-              <DatePicker style={{ width: '100%' }} />
+              <DatePicker style={{ width: "100%" }} />
             </Form.Item>
           </Col>
           <Col span={24}>
             <Form.Item
               label="Store"
               name="store"
-              rules={[{ required: true, message: 'Please select a store' }]}
+              rules={[{ required: true, message: "Please select a store" }]}
             >
               <Select
                 placeholder="Select Store"
-                options={[{ value: 'Main Store', label: 'Main Store' }]}
+                options={[{ value: "Main Store", label: "Main Store" }]}
               />
             </Form.Item>
           </Col>
@@ -251,8 +272,8 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
               label="Billing Address"
               name="billingAddress"
               rules={[
-                { required: true, message: 'Billing address is required' },
-                { min: 5, message: 'Address should be at least 5 characters' },
+                { required: true, message: "Billing address is required" },
+                { min: 5, message: "Address should be at least 5 characters" },
               ]}
             >
               <Input.TextArea rows={2} />
@@ -283,7 +304,7 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
               <div>
                 <Row justify="end">
                   <Col span={8}>
-                    <div style={{ textAlign: 'right', paddingRight: 16 }}>
+                    <div style={{ textAlign: "right", paddingRight: 16 }}>
                       <div style={{ marginBottom: 8 }}>
                         <Text strong>Subtotal:</Text> ${subtotal.toFixed(2)}
                       </div>
@@ -301,7 +322,7 @@ const InvoiceFormDrawer: React.FC<InvoiceFormDrawerProps> = ({
         <Button
           type="dashed"
           onClick={handleAddLineItem}
-          style={{ width: '100%', marginTop: 16 }}
+          style={{ width: "100%", marginTop: 16 }}
         >
           + Add Line Item
         </Button>

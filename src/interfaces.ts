@@ -187,6 +187,7 @@ export interface Product {
 
 export interface Customer {
   id: number;
+  qbId: string;
   displayName: string;
 }
 

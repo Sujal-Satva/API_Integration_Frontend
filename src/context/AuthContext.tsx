@@ -74,7 +74,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
               setIsLoggedIn(false);
             }
           }
-        }
+        }z
       } catch (error) {
         console.log(error);
         console.error("Token validation error:", error);

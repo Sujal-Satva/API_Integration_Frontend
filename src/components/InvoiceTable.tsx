@@ -1,8 +1,8 @@
-import React from 'react';
-import { Table, Button, Space, Popconfirm } from 'antd';
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
-import moment from 'moment';
-import { Invoice, Customer, PaginationParams } from './../interfaces';
+import React from "react";
+import { Table, Button, Space, Popconfirm } from "antd";
+import { EditOutlined, DeleteOutlined, EyeOutlined } from "@ant-design/icons";
+import moment from "moment";
+import { Invoice, Customer, PaginationParams } from "./../interfaces";
 
 interface InvoiceTableProps {
   invoiceData: Invoice[];
@@ -27,42 +27,43 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
 }) => {
   const columns = [
     {
-      title: 'Invoice ID',
-      dataIndex: 'invoiceId',
-      key: 'invoiceId',
+      title: "Invoice ID",
+      dataIndex: "invoiceId",
+      key: "invoiceId",
     },
     {
-      title: 'Customer',
-      dataIndex: 'customerId',
-      key: 'customerId',
+      title: "Customer",
+      dataIndex: "customerId",
+      key: "customerId",
       render: (id: number) =>
-        customers.find((c) => c.id === id)?.displayName || 'Unknown',
+        customers.find((c) => c.qbId == id.toString())?.displayName ||
+        "Unknown",
     },
-    { title: 'Billing Address', dataIndex: 'billingAddress' },
+    { title: "Billing Address", dataIndex: "billingAddress" },
     {
-      title: 'Invoice Date',
-      dataIndex: 'invoiceDate',
-      key: 'invoiceDate',
+      title: "Invoice Date",
+      dataIndex: "invoiceDate",
+      key: "invoiceDate",
       sorter: true,
-      render: (text: string) => moment(text).format('YYYY-MM-DD'),
+      render: (text: string) => moment(text).format("YYYY-MM-DD"),
     },
     {
-      title: 'Due Date',
-      dataIndex: 'dueDate',
-      key: 'dueDate',
+      title: "Due Date",
+      dataIndex: "dueDate",
+      key: "dueDate",
       sorter: true,
-      render: (text: string) => moment(text).format('YYYY-MM-DD'),
+      render: (text: string) => moment(text).format("YYYY-MM-DD"),
     },
-    { title: 'Store', dataIndex: 'store' },
+    { title: "Store", dataIndex: "store" },
     {
-      title: 'Total',
-      dataIndex: 'total',
-      key: 'total',
+      title: "Total",
+      dataIndex: "total",
+      key: "total",
       sorter: true,
-      render: (amount: number) => (amount ? `$${amount.toFixed(2)}` : '$0.00'),
+      render: (amount: number) => (amount ? `$${amount.toFixed(2)}` : "$0.00"),
     },
     {
-      title: 'Actions',
+      title: "Actions",
       render: (_: any, record: Invoice) => (
         <Space>
           <Button
@@ -94,7 +95,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({
       loading={loading}
       pagination={pagination}
       onChange={handleTableChange}
-      sortDirections={['ascend', 'descend']}
+      sortDirections={["ascend", "descend"]}
     />
   );
 };
