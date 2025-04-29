@@ -32,7 +32,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { token } = theme.useToken();
-    const { isLoggedIn, logout } = useAuth();
+    // const { isLoggedIn, logout } = useAuth();
 
     const fullMenuItems = [
         {
@@ -50,49 +50,49 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             icon: <AccountBookOutlined />,
             label: "Accounts",
         },
-        {
-            key: "/products",
-            icon: <ShoppingOutlined />,
-            label: "Products",
-        },
-        {
-            key: "/invoices",
-            icon: <ShoppingOutlined />,
-            label: "Invoices",
-        },
-        {
-            key: "/vendors",
-            icon: <ShoppingOutlined />,
-            label: "Vendors",
-        },
-        {
-            key: "/bills",
-            icon: <ShoppingOutlined />,
-            label: "Bills",
-        },
+        // {
+        //     key: "/products",
+        //     icon: <ShoppingOutlined />,
+        //     label: "Products",
+        // },
+        // {
+        //     key: "/invoices",
+        //     icon: <ShoppingOutlined />,
+        //     label: "Invoices",
+        // },
+        // {
+        //     key: "/vendors",
+        //     icon: <ShoppingOutlined />,
+        //     label: "Vendors",
+        // },
+        // {
+        //     key: "/bills",
+        //     icon: <ShoppingOutlined />,
+        //     label: "Bills",
+        // },
     ];
 
-    const menuItems = isLoggedIn
-        ? fullMenuItems
-        : fullMenuItems.filter((item) => item.key === "/");
+    // const menuItems = isLoggedIn
+    //     ? fullMenuItems
+    //     : fullMenuItems.filter((item) => item.key === "/");
 
-    const userMenu = (
-        <Menu
-            items={[
-                {
-                    key: "profile",
-                    icon: <UserSwitchOutlined />,
-                    label: "Profile",
-                },
-                {
-                    key: "logout",
-                    icon: <LogoutOutlined />,
-                    label: "Logout",
-                    onClick: logout,
-                },
-            ]}
-        />
-    );
+    // const userMenu = (
+    //     <Menu
+    //         items={[
+    //             {
+    //                 key: "profile",
+    //                 icon: <UserSwitchOutlined />,
+    //                 label: "Profile",
+    //             },
+    //             // {
+    //             //     key: "logout",
+    //             //     icon: <LogoutOutlined />,
+    //             //     label: "Logout",
+    //             //     onClick: logout,
+    //             // },
+    //         ]}
+    //     />
+    // );
 
     return (
         <Layout style={{ minHeight: "100vh" }}>
@@ -101,7 +101,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     position: "fixed",
                     width: "100%",
                     top: 0,
-                    // zIndex: 1001,
+                    zIndex: 10,
                     padding: "0 24px",
                     display: "flex",
                     alignItems: "center",
@@ -122,7 +122,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                     </Typography.Title>
                 </div>
 
-                {isLoggedIn && (
+                {/* {isLoggedIn && (
                     <Dropdown overlay={userMenu} placement="bottomRight" arrow>
                         <Button type="text">
                             <Space>
@@ -130,7 +130,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                             </Space>
                         </Button>
                     </Dropdown>
-                )}
+                )} */}
             </Header>
 
             <Layout hasSider>
@@ -154,7 +154,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         mode="inline"
                         selectedKeys={[location.pathname]}
                         onClick={({ key }) => navigate(key)}
-                        items={menuItems}
+                        items={fullMenuItems}
                         style={{ borderRight: 0, paddingTop: 16 }}
                     />
                 </Sider>

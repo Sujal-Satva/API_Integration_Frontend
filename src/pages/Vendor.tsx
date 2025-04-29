@@ -83,8 +83,8 @@ export const Vendors: React.FC = () => {
       setPagination((prev) => ({
         ...prev,
         current: resetPage ? 1 : current,
-        total: response.totalRecords,
-        totalPages: response.totalPages,
+        total: response.totalRecords ?? 0,
+        totalPages: response.totalPages ?? 0,
       }));
     } catch (error) {
       if (error instanceof Error) {
@@ -271,6 +271,7 @@ export const Vendors: React.FC = () => {
                 icon={<ShopOutlined />}
                 onClick={() => {
                   showModal();
+                  console.log(record);
                   setSelectedVendor(record.id);
                 }}
               />

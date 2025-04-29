@@ -106,9 +106,9 @@ export const Products: React.FC = () => {
 
       setProducts(response.data);
       setPagination({
-        current: response.page,
-        pageSize: response.pageSize,
-        total: response.totalRecords,
+        current: response.page ?? 1,
+        pageSize: response.pageSize ?? 10,
+        total: response.totalRecords ?? 0,
         totalPages: response.totalPages,
       });
     } catch (error) {
@@ -257,6 +257,7 @@ export const Products: React.FC = () => {
 
   const handleMarkAsActive = async (id: string) => {
     try {
+      // console.log(id);
       await markProductAsActive(id);
       message.success("Product marked as active.");
       fetchProducts({});
@@ -329,6 +330,7 @@ export const Products: React.FC = () => {
       title: "Actions",
       key: "actions",
       render: (_: any, record: Product) => (
+        
         <>
           {isActive ? (
             <>
@@ -349,7 +351,8 @@ export const Products: React.FC = () => {
           ) : (
             <Button
               type="primary"
-              onClick={() => handleMarkAsActive(record.qbId)}
+              onClick={() => {handleMarkAsActive(record.qbItemId)
+              }}
             >
               Mark as Active
             </Button>
@@ -392,7 +395,7 @@ export const Products: React.FC = () => {
             Sync Products
           </Button>
 
-          <Checkbox
+          {/* <Checkbox
             style={{ marginLeft: 10 }}
             onChange={(e) => {
               const checked = e.target.checked;
@@ -409,7 +412,7 @@ export const Products: React.FC = () => {
             checked={isActive}
           >
             Active Products
-          </Checkbox>
+          </Checkbox> */}
         </Col>
       </Row>
 

@@ -1,388 +1,286 @@
-import React, { useState, useEffect, useRef } from "react";
-import {
-  Button,
-  Table,
-  Modal,
-  Drawer,
-  Form,
-  Input,
-  Typography,
-  Pagination,
-  message,
-  Checkbox,
-} from "antd";
-import {
-  EditOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  PlusOutlined,
-  SearchOutlined,
-} from "@ant-design/icons";
-import {
-  fetchCustomers,
-  saveCustomer,
-  deleteCustomer,
-  downloadCustomers,
-  markCustomerAsActive,
-} from "../services/customerService";
-import debounce from "lodash/debounce";
+import { Table, Typography, Input, Button, message, Select, Form, Popconfirm } from "antd";
+import { useEffect, useState } from "react";
+import { DeleteOutlined, DownloadOutlined, EditOutlined } from "@ant-design/icons";
+import { ColumnsType, TablePaginationConfig } from "antd/es/table";
+import type { SortOrder } from "antd/es/table/interface";
+import { customerService } from "../services/customerService";
+import { useAuth } from "../context/AuthContext";
+import { CustomerDrawer } from "../components/CustomerDrawer";
 
 const { Title } = Typography;
+const { Search } = Input;
+const { Option } = Select;
+interface Account {
+  id: string;
+  xeroId:string;
+  quickBooksId:string;
+  name: string;
+  accountType: string;
+  accountSubType: string;
+  currentBalance: number;
+  currencyName: string;
+  sourceSystem: string;
+}
 
-const Customer = () => {
-  interface Customer {
-    id: string;
-    displayName: string;
-    email: string;
-    phone: string;
-    line1: string;
-    city: string;
-    countrySubDivisionCode: string;
-    postalCode: string;
-  }
+interface SortInfo {
+  field: string;
+  order: SortOrder;
+}
 
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [currentCustomer, setCurrentCustomer] = useState<Customer | undefined>(
-    undefined
-  );
-  const [visible, setVisible] = useState(false);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [pagination, setPagination] = useState({
-    current: 1,
-    pageSize: 10,
-    total: 30,
+export const Customer = () => {
+  const [data, setData] = useState<Account[]>([]);
+  const [totalRecords, setTotalRecords] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [searchText, setSearchText] = useState<string>("");
+  const [quickbooksLoading, setQuickBooksLoading] = useState<boolean>(false);
+  const [xeroLoading, setXeroLoading] = useState<boolean>(false);
+  const [sourceFilter, setSourceFilter] = useState<string>("");
+  const [sortInfo, setSortInfo] = useState<SortInfo>({
+    field: "name",
+    order: "ascend",
   });
-  const [sortInfo, setSortInfo] = useState({ field: "", order: "" });
-  const [isActive, setIsActive] = useState(true);
-  const debouncedSearch = useRef(
-    debounce((term) => fetchCustomerData(term), 500)
-  );
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const result = await customerService.getAllCustomer(
+        page,
+        pageSize,
+        searchText,
+        sortInfo.field,
+        sortInfo.order === "descend" ? "desc" : "asc",
+        sourceFilter
+      );
+
+      setData(result.data.data);
+      setTotalRecords(result.data.totalRecords);
+    } catch (error) {
+      console.error("Error fetching accounts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    fetchCustomerData();
-  }, [pagination.current, pagination.pageSize, sortInfo]);
+    fetchData();
+  }, [page, pageSize, searchText, sortInfo, sourceFilter]);
+  
+  useEffect(() => {
+    setPage(1);
+    setPageSize(10);
+    setSortInfo({ field: "name", order: "ascend" });
+    setSearchText("");
+  }, [sourceFilter]);
+  
 
-  const fetchCustomerData = async (searchTerm = "", activestatus = true) => {
-    setLoading(true);
-    try {
-      if (!activestatus) {
-        setPagination((values) => ({
-          ...values,
-          current: 1,
-        }));
-      }
-      const data = await fetchCustomers(
-        pagination.current,
-        pagination.pageSize,
-        searchTerm,
-        sortInfo.field,
-        sortInfo.order === "ascend" ? "asc" : "desc",
-        activestatus
-      );
-      setCustomers(data.data);
-      setPagination((prev) => ({ ...prev, total: data.totalRecords }));
-    } catch (error) {
-      console.log(error);
-      message.error("Failed to fetch customers.");
-    } finally {
-      setLoading(false);
+  const handleTableChange = (
+    pagination: TablePaginationConfig,
+    filters: Record<string, (string | number | boolean)[] | null>,
+    sorter: any
+  ) => {
+    setPage(pagination.current || 1);
+    setPageSize(pagination.pageSize || 10);
+
+    if (sorter.order) {
+      setSortInfo({
+        field: sorter.field,
+        order: sorter.order,
+      });
     }
   };
 
-  const handlePageChange = (page: number, pageSize: number) => {
-    setPagination({ ...pagination, current: page, pageSize });
-  };
-
-  const openDrawer = (customer: any) => {
-    setIsEditMode(!!customer);
-    setCurrentCustomer(customer || undefined);
-    setVisible(true);
-  };
-
-  const closeDrawer = () => {
-    setVisible(false);
-    setCurrentCustomer(undefined);
-  };
-
-  const handleFormSubmit = async (values: any) => {
-    setLoading(true);
+  const downloadAccounts = async (platform: string) => {
     try {
-      const result = await saveCustomer(values, isEditMode, currentCustomer);
-      if (result.error == null) {
-        message.success(isEditMode ? "Customer updated!" : "Customer added!");
-        fetchCustomerData(searchTerm);
-        closeDrawer();
+      if (platform === "QuickBooks") {
+        setQuickBooksLoading(true);
+      }
+      else {
+        setXeroLoading(true);
+      }
+      const response = await customerService.fetchCustomer(platform);
+      if (response.status === 200) {
+        fetchData();
       } else {
-        message.error("Duplicate Name Exists Error");
+        message.error("Failed to download accounts.");
       }
     } catch (error) {
-      console.log(error);
-      message.error("Error while saving customer.");
+      console.error("Failed to download accounts:", error);
+      message.error("Failed to download accounts.");
     } finally {
-      setLoading(false);
+      if (platform === "QuickBooks") {
+        setQuickBooksLoading(false);
+      }
+      else {
+        setXeroLoading(false);
+      }
     }
   };
 
-  const handleDelete = async (id: any) => {
-    Modal.confirm({
-      title: "Are you sure?",
-      content: "This will deactivate the customer in QuickBooks.",
-      okText: "Yes",
-      cancelText: "No",
-      onOk: async () => {
-        setLoading(true);
-        try {
-          const data = await deleteCustomer(id);
-          if (data.error == null) {
-            message.success("Customer deactivated!");
-            fetchCustomerData(searchTerm);
-          } else {
-            message.error(data.message || "Failed to deactivate customer.");
-          }
-        } catch (error) {
-          console.log(error);
-          message.error("Error while deactivating customer.");
-        } finally {
-          setLoading(false);
-        }
-      },
-    });
-  };
-
-  const handleSearchChange = (e: any) => {
-    const value = e.target.value;
-    setSearchTerm(value);
-    debouncedSearch.current(value);
-  };
-
-  const handleDownload = async () => {
+  const handleDelete = async (id: string, platform: string) => {
     try {
-      setLoading(true);
-      await downloadCustomers();
-      message.success("Customers downloaded successfully!");
+      await customerService.deleteCustomer(id, platform);
+      fetchData();
     } catch (error) {
-      console.log(error);
-      message.error("Failed to download customers.");
-    } finally {
-      setLoading(false);
+      message.error("Failed to delete customer.");
+      console.error("Delete error:", error);
     }
   };
 
-  const handleMarkAsActive = async (id: string) => {
-    try {
-      await markCustomerAsActive(id);
-      message.success("Customer marked as active.");
-      fetchCustomerData();
-    } catch (error) {
-      console.log(error);
-      message.error("Failed to mark customer as active.");
-    }
-  };
-
-  const handleTableChange = (pagination: any, filters: any, sorter: any) => {
-    setSortInfo({
-      field: sorter.field || "",
-      order: sorter.order || "",
-    });
-  };
-
-  const columns = [
+  const { connectedAccounts } = useAuth();
+  const columns: ColumnsType<Account> = [
+    { title: "Name", dataIndex: "displayName", key: "name", sorter: true },
+    { title: "Email", dataIndex: "emailAddress", key: "email", sorter: true },
     {
-      title: "Name",
-      dataIndex: "displayName",
-      key: "displayName",
+      title: "Address", dataIndex: "addressLine1", key: "addressLine1"
+    },
+    {
+      title: "City",
+      dataIndex: "city",
+      key: "city",
       sorter: true,
-      sortOrder: sortInfo.field === "displayName" ? sortInfo.order : null,
     },
     {
-      title: "Email",
-      dataIndex: "email",
-      key: "email",
-      sorter: true,
-      sortOrder: sortInfo.field === "email" ? sortInfo.order : null,
+      title: "Phone", dataIndex: "phoneNumber", key: "phoneNumber", sorter: true
     },
-    {
-      title: "Phone",
-      dataIndex: "phone",
-      key: "phone",
-      sorter: true,
-      sortOrder: sortInfo.field === "phone" ? sortInfo.order : null,
-    },
-    {
-      title: "Address",
-      key: "address",
-      render: (_: any, record: Customer) => {
-        const parts = [
-          record.line1,
-          record.city,
-          record.countrySubDivisionCode,
-          record.postalCode,
-        ].filter(Boolean);
-        return parts.length > 0 ? parts.join(", ") : "";
-      },
-    },
+    { title: "Source System", dataIndex: "sourceSystem", key: "sourceSystem" },
+    { title: "Last Updated", dataIndex: "lastUpdatedUtc", key: "lastUpdated", sorter: true },
     {
       title: "Actions",
       key: "actions",
-      render: (_: any, record: Customer) => (
-        <>
-          {isActive ? (
-            <>
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => openDrawer(record)}
-              />
-              <Button
-                icon={<DeleteOutlined />}
-                onClick={() => handleDelete(record.id)}
-                danger
-                style={{ marginLeft: 8 }}
-              />
-            </>
-          ) : (
-            <Button
-              type="primary"
-              onClick={() => handleMarkAsActive(record.qbId)}
-            >
-              Mark as Active
-            </Button>
-          )}
-        </>
+      render: (text, record) => (
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button type="link" onClick={() => { openDrawer(record); }}>
+            <EditOutlined />
+          </Button>
+          <Popconfirm
+            title="Are you sure to delete this customer?"
+            onConfirm={() => handleDelete(record.sourceSystem == "QuickBooks" ? record.quickBooksId : record.xeroId, record.sourceSystem)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button type="link" danger icon={<DeleteOutlined />} />
+          </Popconfirm>
+        </div>
       ),
-    },
+    }
+
   ];
 
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [editingCustomer, setEditingCustomer] = useState<any | null>(null);
+  const [form] = Form.useForm();
+  const [drawerLoading, setDrawerLoading] = useState(false);
+  const openDrawer = (customer?: any) => {
+
+    setEditingCustomer(customer ? { ...customer } : null);
+    setDrawerVisible(true);
+  };
+  const closeDrawer = () => {
+    setDrawerVisible(false);
+    form.resetFields();
+  };
+  const handleDrawerSubmit = async (values: any, platform: string) => {
+    try {
+      setDrawerLoading(true);
+      console.log(values, platform);
+      if (editingCustomer) {
+        await customerService.editCustomer(values, platform);
+      } else {
+        await customerService.addCustomer(values, platform);
+      }
+      fetchData();
+      closeDrawer();
+    } catch (error) {
+      message.error("Operation failed.");
+    } finally {
+      setDrawerLoading(false);
+    }
+  };
   return (
     <div className="p-6">
-      <Title level={2}>Customer</Title>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: "15px",
-          alignItems: "center",
-          marginBottom: 16,
-        }}
-      >
-        <Input
-          placeholder="Search Customers"
-          prefix={<SearchOutlined />}
-          value={searchTerm}
-          onChange={handleSearchChange}
-          style={{ width: 250 }}
-        />
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => openDrawer(null)}
-        >
-          Add Customer
-        </Button>
-        <Button
-          type="primary"
-          icon={<DownloadOutlined />}
-          onClick={handleDownload}
-        >
-          Sync Customers
-        </Button>
-        <Checkbox
-          checked={isActive}
-          onChange={(e) => {
-            const checked = e.target.checked;
-            setIsActive(checked);
-            fetchCustomerData("", checked);
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 0 }}>
+        <Title level={2}>Customers</Title>
+        <Button type="primary" onClick={() => openDrawer()} style={{ marginBottom: 10 }}>
+          Add Customer </Button>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+        <Search
+          placeholder="Search value"
+          allowClear
+          onSearch={(value) => {
+            setPage(1);
+            setSearchText(value);
           }}
-        >
-          Active Customers
-        </Checkbox>
+          style={{ width: 300 }}
+        />
+
+        <div>
+          <Select
+            defaultValue=""
+            onChange={(value) => setSourceFilter(value)}
+            style={{ width: 180, marginRight: 8 }}
+          >
+            <Option value="">All</Option>
+            <Option value="QuickBooks">QuickBooks</Option>
+            <Option value="Xero">Xero</Option>
+          </Select>
+
+          {
+            connectedAccounts.quickbooks && (
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={() => downloadAccounts("QuickBooks")}
+                loading={quickbooksLoading}
+                style={{ marginLeft: 16 }}
+              >
+                Sync from QuickBooks
+              </Button>
+            )}
+          {connectedAccounts.xero && (
+            <Button
+              type="primary"
+              icon={<DownloadOutlined />}
+              onClick={() => downloadAccounts("Xero")}
+              loading={xeroLoading}
+              style={{ marginLeft: 16 }}
+            >
+              Sync from Xero
+            </Button>
+          )
+          }
+
+        </div>
       </div>
 
       <Table
         columns={columns}
-        dataSource={customers}
+        dataSource={data}
         loading={loading}
-        pagination={false}
-        onChange={handleTableChange}
         rowKey="id"
+        pagination={{
+          current: page,
+          pageSize,
+          total: totalRecords,
+          showSizeChanger: true,
+        }}
+        onChange={handleTableChange}
       />
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "flex-end",
-          gap: "15px",
-          marginBottom: 16,
-        }}
-      >
-        <Pagination
-          current={pagination.current}
-          pageSize={pagination.pageSize}
-          total={pagination.total}
-          showSizeChanger
-          pageSizeOptions={["5", "10", "20", "50"]}
-          onChange={handlePageChange}
-          onShowSizeChange={handlePageChange}
-          style={{ marginTop: 16 }}
-        />
-      </div>
-
-      <Drawer
-        title={isEditMode ? "Edit Customer" : "Add Customer"}
-        visible={visible}
+      <CustomerDrawer
+        visible={drawerVisible}
         onClose={closeDrawer}
-        width={600}
-        destroyOnClose
-      >
-        <Form
-          initialValues={currentCustomer}
-          onFinish={handleFormSubmit}
-          layout="vertical"
-        >
-          <Form.Item
-            label="Display Name"
-            name="displayName"
-            rules={[{ required: true }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item label="Email" name="email" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item label="Phone" name="phone" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item label="Line 1" name="line1" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item label="City" name="city" rules={[{ required: true }]}>
-            <Input />
-          </Form.Item>
-          <Form.Item
-            label="State/Province (CA)"
-            name="countrySubDivisionCode"
-            rules={[{ required: true }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item
-            label="Postal Code"
-            name="postalCode"
-            rules={[{ required: true }]}
-          >
-            <Input />
-          </Form.Item>
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading}>
-              {isEditMode ? "Update Customer" : "Add Customer"}
-            </Button>
-          </Form.Item>
-        </Form>
-      </Drawer>
+        onSubmit={handleDrawerSubmit}
+        customer={editingCustomer}
+        form={form}
+        loading={drawerLoading}
+      />
+
     </div>
   );
 };
 
-export default Customer;

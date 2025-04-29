@@ -2,19 +2,12 @@ import axios from "axios";
 import { Vendor, VendorFormValues, ApiResponse } from "../interfaces";
 
 const API_URL = import.meta.env.VITE_API_URL;
-
-const getToken = (): string => localStorage.getItem("qb_access_token") || "";
-const getRealmId = (): string => localStorage.getItem("qb_realm_id") || "";
-
 export async function fetchVendors(params): Promise<ApiResponse<Vendor[]>> {
   try {
     const response = await axios.get<ApiResponse<Vendor[]>>(
-      `${API_URL}/api/Vendor?realmId=${getRealmId()}`,
+      `${API_URL}/api/Vendor`,
       {
-        params,
-        headers: {
-          Authorization: `Bearer ${getToken()}`,
-        },
+        params
       }
     );
     return response.data;
@@ -27,9 +20,6 @@ export async function fetchVendors(params): Promise<ApiResponse<Vendor[]>> {
 export async function addVendor(
   vendorData: VendorFormValues
 ): Promise<ApiResponse<Vendor>> {
-  const token = getToken();
-  const realmId = getRealmId();
-
   const payload = {
     ...vendorData,
     currencyValue: "USD",
@@ -39,13 +29,8 @@ export async function addVendor(
 
   try {
     const response = await axios.post<ApiResponse<Vendor>>(
-      `${API_URL}/api/Vendor/add?realmId=${realmId}`,
+      `${API_URL}/api/Vendor/add`,
       payload,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
     );
     return response.data;
   } catch (error: any) {
@@ -64,9 +49,6 @@ export async function updateVendor(
   id: string,
   vendorData: VendorFormValues
 ): Promise<ApiResponse<Vendor>> {
-  const token = getToken();
-  const realmId = getRealmId();
-
   const payload = {
     ...vendorData,
     currencyValue: "USD",
@@ -76,13 +58,8 @@ export async function updateVendor(
 
   try {
     const response = await axios.put(
-      `${API_URL}/api/Vendor/update/${id}?realmId=${realmId}`,
-      payload,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${API_URL}/api/Vendor/update/${id}`,
+      payload
     );
     return response.data;
   } catch (error: any) {
@@ -98,17 +75,9 @@ export async function updateVendor(
 }
 
 export async function deleteVendor(id: string) {
-  const token = getToken();
-  const realmId = getRealmId();
-
   try {
     const response = await axios.delete(
-      `${API_URL}/api/Vendor/delete/${id}?realmId=${realmId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${API_URL}/api/Vendor/delete/${id}`
     );
     return response.data;
   } catch (error) {
@@ -118,18 +87,11 @@ export async function deleteVendor(id: string) {
 }
 
 export async function activateVendor(id: string) {
-  const token = getToken();
-  const realmId = getRealmId();
 
   try {
     const response = await axios.put(
-      `${API_URL}/api/Vendor/${id}/activate?realmId=${realmId}`,
+      `${API_URL}/api/Vendor/${id}/activate`,
       null,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
     );
     return response.data;
   } catch (error) {
@@ -139,8 +101,7 @@ export async function activateVendor(id: string) {
 }
 
 export async function syncVendors() {
-  const token = getToken();
-  const realmId = getRealmId();
+
 
   if (!token || !realmId) {
     throw new Error("Missing QuickBooks access token or realm ID");
@@ -148,12 +109,7 @@ export async function syncVendors() {
 
   try {
     const response = await axios.get(
-      `${API_URL}/api/Vendor/fetch?realmId=${realmId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${API_URL}/api/Vendor/fetch`,
     );
     return response.data;
   } catch (error) {

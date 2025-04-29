@@ -1,6 +1,6 @@
 import axios from "axios";
 import { message } from "antd";
-import { getQuickBooksAuth } from "../utils";
+
 
 import {
   Bill,
@@ -23,15 +23,11 @@ export const fetchBills = async (
   sortDirection: string = "desc"
 ): Promise<{ bills: Bill[]; pagination: PaginationConfig } | null> => {
   try {
-    const { token, realmId } = getQuickBooksAuth();
+   
 
     const response = await axios.get<ApiResponse<Bill[]>>(
-      `${API_URL}/api/Bills?page=${page}&pageSize=${pageSize}&search=${search}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&realmId=${realmId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+      `${API_URL}/api/Bills?page=${page}&pageSize=${pageSize}&search=${search}&sortColumn=${sortColumn}&sortDirection=${sortDirection}`,
+      
     );
 
     return {
@@ -54,14 +50,9 @@ export const fetchBills = async (
 // Sync bills from QuickBooks
 export const syncBillsFromQuickBooks = async (): Promise<boolean> => {
   try {
-    const { token, realmId } = getQuickBooksAuth();
+    
 
-    await axios.get(`${API_URL}/api/Bills/fetch?realmId=${realmId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-
+    await axios.get(`${API_URL}/api/Bills/fetch`);
     message.success("Bills downloaded successfully!");
     return true;
   } catch (error) {
@@ -76,15 +67,13 @@ export const saveBill = async (
   payload: QuickBooksBillPayload
 ): Promise<boolean> => {
   try {
-    const { token, realmId } = getQuickBooksAuth();
-
+  
     const response = await axios.post(
-      `${API_URL}/api/bills/add?realmId=${realmId}`,
+      `${API_URL}/api/bills/add`,
       payload,
       {
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
       }
     );
@@ -107,15 +96,10 @@ export const saveBill = async (
 // Fetch vendors
 export const fetchVendors = async (): Promise<Vendor[]> => {
   try {
-    const { token } = getQuickBooksAuth();
+  
 
     const response = await axios.get<ApiResponse<Vendor[]>>(
       `${API_URL}/api/Vendor?pagination=false&active=true`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
     );
 
     return response.data.data;
@@ -129,15 +113,11 @@ export const fetchVendors = async (): Promise<Vendor[]> => {
 // Fetch categories/accounts
 export const fetchCategories = async (): Promise<Category[]> => {
   try {
-    const { token } = getQuickBooksAuth();
+  
 
     const response = await axios.get<ApiResponse<Category[]>>(
       `${API_URL}/api/Account/all?pagination=false`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
+     
     );
 
     return response.data.data;
@@ -151,15 +131,9 @@ export const fetchCategories = async (): Promise<Category[]> => {
 // Fetch products
 export const fetchProducts = async (): Promise<Product[]> => {
   try {
-    const { token } = getQuickBooksAuth();
-
+ 
     const response = await axios.get<ApiResponse<Product[]>>(
       `${API_URL}/api/Product?pagination=false&active=true`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
     );
 
     return response.data.data;
@@ -173,15 +147,8 @@ export const fetchProducts = async (): Promise<Product[]> => {
 // Fetch customers
 export const fetchCustomers = async (): Promise<Customer[]> => {
   try {
-    const { token } = getQuickBooksAuth();
-
     const response = await axios.get<ApiResponse<Customer[]>>(
       `${API_URL}/api/Customer/all?pagination=false&active=true`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
     );
 
     return response.data.data;

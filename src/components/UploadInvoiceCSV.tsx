@@ -79,7 +79,7 @@ export const UploadInvoiceCSV = () => {
       const first = group[0];
       const itemNames = new Set<string>();
       group.forEach((row) => {
-        const rowNum = rows.indexOf(row) + 2;
+        const rowNum = rows.indexOf(row) + 1;
         if (!row.CustomerName) {
           errors.push({ row: rowNum, message: "CustomerName is required." });
         }
@@ -133,7 +133,7 @@ export const UploadInvoiceCSV = () => {
           errors.push({
             row: rowNum,
             message:
-              "Inconsistent invoice header fields within the same InvoiceNumber group.",
+              "Inconsistent invoice data within the same Invoice",
           });
         }
 

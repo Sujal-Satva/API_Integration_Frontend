@@ -1,4 +1,3 @@
-// BillForm.tsx
 import React, { FC, useState, useEffect } from "react";
 import {
   Form,
@@ -91,14 +90,16 @@ const BillForm: FC<BillFormProps> = ({
 
   // Set initial form values
   useEffect(() => {
+    handleVendorChange(parseInt(selectedVendorFromVendor));
     form.setFieldsValue({
+      vendorId: selectedVendorFromVendor,
       billDate: dayjs(),
       dueDate: dayjs(),
     });
-  }, [form]);
+  }, [form,selectedVendorFromVendor]);
 
   const handleVendorChange = (value: number) => {
-    console.log(value,"vendot");
+    
     const selectedVendorData = vendors.find((v) => v.id == value);
     if (selectedVendorData) {
       setSelectedVendor(selectedVendorData.vId);

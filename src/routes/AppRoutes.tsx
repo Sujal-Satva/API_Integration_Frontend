@@ -2,7 +2,7 @@ import React, { JSX } from "react";
 import { Routes, Route } from "react-router-dom";
 import { PrivateRoute } from "../components/PrivateRoute";
 import Dashboard from "../pages/Dashboard";
-import Customer from "../pages/Customer";
+import { Customer } from "../pages/Customer";
 import { Accounts } from "../pages/Accounts";
 import Product from "../pages/Product";
 import { Invoice } from "../pages/Invoice";
@@ -16,12 +16,12 @@ interface AppRoute {
 
 const routes: AppRoute[] = [
   { path: "/", element: <Dashboard /> },
-  { path: "/customers", element: <Customer />, isPrivate: true },
-  { path: "/accounts", element: <Accounts />, isPrivate: true },
-  { path: "/products", element: <Product />, isPrivate: true },
-  { path: "/invoices", element: <Invoice />, isPrivate: true },
-  { path: "/vendors", element: <Vendor />, isPrivate: true },
-  { path: "/bills", element: <Bills />, isPrivate: true },
+  { path: "/customers", element: <Customer />,  },
+  { path: "/accounts", element: <Accounts />, },
+  { path: "/products", element: <Product />,  },
+  { path: "/invoices", element: <Invoice />, },
+  { path: "/vendors", element: <Vendor />,  },
+  { path: "/bills", element: <Bills />, },
 ];
 
 const AppRoutes: React.FC = () => {

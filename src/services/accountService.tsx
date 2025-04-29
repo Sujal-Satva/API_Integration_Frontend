@@ -1,50 +1,30 @@
-import { message } from "antd";
-import axios from "axios";
+import { apiRequest } from "./../apiServices/apiCall"; // adjust path as needed
 
-const API_URL = import.meta.env.VITE_API_URL;
 
-const getAllAccounts = async (
-  realmId: string | null,
-  page: number,
-  pageSize: number,
-  searchText: string,
-  sortField: string,
-  sortOrder: string
-) => {
-  const token = localStorage.getItem("qb_access_token");
-  if (!token || !realmId) {
-    message.error("Missing QuickBooks access token or realm ID.");
-    return null;
-  }
-  const response = await axios.get(`${API_URL}/api/Account/all`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-    params: {
+export const accountService = {
+  getAllAccounts: async (
+    realmId: string | null,
+    page: number,
+    pageSize: number,
+    searchText: string,
+    sortField: string,
+    sortOrder: string,
+    sourceFiler: string 
+  ) => {
+    const params = {
       realmId,
       page,
       pageSize,
       search: searchText,
       sortColumn: sortField,
       sortDirection: sortOrder,
-    },
-  });
-  return response.data;
-};
+      sourceSystem: sourceFiler,
+    };
 
-const fetchAccountsFromQuickBooks = async (token: string, realmId: string) => {
-  const response = await axios.get(
-    `${API_URL}/api/Account/fetch?realmId=${realmId}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }
-  );
-  return response.data;
-};
+    return await apiRequest<any>("GET", `/api/Account/all`, undefined, { params });
+  },
 
-export const accountService = {
-  getAllAccounts,
-  fetchAccountsFromQuickBooks,
+  fetchAccountsFromQuickBooks: async (platform:string) => {
+    return await apiRequest<any>("GET", `/api/Account/fetch-${platform=="QuickBooks" ? "qbo" : "xero"}`);
+  },
 };

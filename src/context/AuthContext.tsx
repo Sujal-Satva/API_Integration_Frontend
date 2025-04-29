@@ -5,11 +5,17 @@ import React, {
   useEffect,
   ReactNode,
 } from "react";
+import axios from "axios";
 
 interface AuthContextType {
-  isLoggedIn: boolean;
-  login: () => void;
-  logout: () => void;
+  connectedAccounts: {
+    quickbooksConnectionId: string;
+    xeroConnectionId: string;
+    quickbooks: boolean;
+    xero: boolean;
+  };
+  updateConnection: (platform: string, status: boolean) => void;
+  checkConnectionStatus: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -18,100 +24,39 @@ const API_URL = import.meta.env.VITE_API_URL;
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [connectedAccounts, setConnectedAccounts] = useState({
+    quickbooks: false,
+    xero: false,
+    quickbooksConnectionId: null,
+    xeroConnectionId: null,
+  });
+
+  const checkConnectionStatus = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/connection-status`);
+      setConnectedAccounts({
+        quickbooks: response.data.data.quickbooksConnected || false,
+        xero: response.data.data.xeroConnected || false,
+        quickbooksConnectionId: response.data.data.quickbooksConnectionId || null,
+        xeroConnectionId: response.data.data.xeroConnectionId || null,
+      });
+    } catch (err) {
+      console.error("Failed to fetch connection status", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const validateToken = async () => {
-      const token = localStorage.getItem("qb_access_token");
-      const refreshToken = localStorage.getItem("qb_refresh_token");
-      const realm = localStorage.getItem("qb_realm_id");
-
-      if (!token || !realm || !refreshToken) {
-        setIsLoggedIn(false);
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          `${API_URL}/api/auth/validate-token?realmId=${realm}`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        if (response.ok) {
-          setIsLoggedIn(true);
-        } else {
-          if (response.status === 401) {
-            console.warn("Access token expired, attempting refresh...");
-            const refreshResponse = await fetch(
-              `${API_URL}/api/auth/refresh?realmId=${realm}`,
-              {
-                method: "POST",
-                credentials: "include",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                  refreshToken: refreshToken,
-                }),
-              }
-            );
-
-            if (refreshResponse.ok) {
-              const data = await refreshResponse.json();
-              localStorage.setItem("qb_access_token", data.accessToken);
-              localStorage.setItem("qb_refresh_token", data.refreshToken);
-              setIsLoggedIn(true);
-            } else {
-              console.error("Token refresh failed");
-              localStorage.clear();
-              setIsLoggedIn(false);
-            }
-          }
-        }z
-      } catch (error) {
-        console.log(error);
-        console.error("Token validation error:", error);
-        setIsLoggedIn(false);
-      } finally {
-        setLoading(false); 
-      }
-    };
-
-    validateToken();
+    checkConnectionStatus();
   }, []);
 
-  const login = () => setIsLoggedIn(true);
-
-  const logout = async () => {
-    const token = localStorage.getItem("qb_refresh_token");
-    if (!token) {
-      setIsLoggedIn(false);
-      return;
-    }
-
-    try {
-      const response = await fetch(`${API_URL}/api/auth/revoke-token`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ accessToken: token }),
-      });
-
-      if (response.ok) {
-        localStorage.clear();
-        setIsLoggedIn(false);
-      }
-    } catch (error) {
-      console.error("Token revocation failed:", error);
-    }
+  const updateConnection = (platform: string, status: boolean) => {
+    setConnectedAccounts(prev => ({
+      ...prev,
+      [platform.toLowerCase()]: status
+    }));
   };
 
   if (loading) {
@@ -129,7 +74,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
   }
 
   return (
-    <AuthContext.Provider value={{ isLoggedIn, login, logout }}>
+    <AuthContext.Provider value={{ 
+      connectedAccounts, 
+      updateConnection, 
+      checkConnectionStatus 
+    }}>
       {children}
     </AuthContext.Provider>
   );

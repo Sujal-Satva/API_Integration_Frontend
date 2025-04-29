@@ -22,9 +22,9 @@ export async function getProducts(
   active: boolean
 ): Promise<ApiResponse<Product[]>> {
   try {
-    const realmId = localStorage.getItem("qb_realm_id");
+    
     const response = await axios.get<ApiResponse<Product[]>>(
-      `${API_URL}/api/Product?realmId=${realmId}&page=${page}&pageSize=${pageSize}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&search=${search}&active=${active}&pagination=true`
+      `${API_URL}/api/Product?page=${page}&pageSize=${pageSize}&sortColumn=${sortColumn}&sortDirection=${sortDirection}&search=${search}&active=${active}&pagination=true`
     );
     return response.data;
   } catch (error) {
@@ -96,11 +96,6 @@ export async function deleteProduct(id: string): Promise<void> {
 
     const response = await axios.delete<ApiResponse<null>>(
       `${API_URL}/api/Product/${id}?realmId=${realmId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
     );
 
     if (response.data.error) {

@@ -7,128 +7,120 @@ import {
   Typography,
   Row,
   Col,
+  Card,
+  Tag
 } from "antd";
 import {
   LinkOutlined,
-  TeamOutlined,
-  BankOutlined,
-  ShoppingOutlined,
-  FileTextOutlined,
-  ShopOutlined,
-  CreditCardOutlined,
+  CheckCircleOutlined,
+  DisconnectOutlined
 } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import SyncCard from "../components/SyncCard";
+
 
 const API_URL = import.meta.env.VITE_API_URL;
 
 const Dashboard = () => {
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
-  const { isLoggedIn, login } = useAuth();
-
-  const [downloadStates, setDownloadStates] = useState<Record<string, boolean>>({
-    customer: false,
-    account: false,
-    product: false,
-    invoice: false,
-    vendor: false,
-    bills: false,
-  });
-
-  const syncOptions = [
-    { key: "customer", title: "Customers", icon: <TeamOutlined /> },
-    { key: "account", title: "Accounts", icon: <BankOutlined /> },
-    { key: "product", title: "Products", icon: <ShoppingOutlined /> },
-    { key: "invoice", title: "Invoices", icon: <FileTextOutlined /> },
-    { key: "vendor", title: "Vendors", icon: <ShopOutlined /> },
-    { key: "bills", title: "Bills", icon: <CreditCardOutlined /> },
-  ];
-
+  const { connectedAccounts, updateConnection } = useAuth();
   useEffect(() => {
     const code = searchParams.get("code");
     const state = searchParams.get("state");
     const realmId = searchParams.get("realmId");
-    const token = localStorage.getItem("qb_access_token");
-
-    if (token) return;
-    if (code && state && realmId) fetchAccessToken(code, state, realmId);
+    const sessionState = searchParams.get("session_state");
+    const scope = searchParams.get("scope");
+    
+    if (code && state && realmId) {
+      fetchQuickBooksAccessToken(code, state, realmId);
+    }
+    else if (code && sessionState && scope) {
+      fetchXeroAccessToken(code, sessionState, scope);
+    }
   }, [searchParams]);
-
-  const fetchAccessToken = async (
-    code: string,
-    state: string,
-    realmId: string
-  ) => {
+  
+  const fetchQuickBooksAccessToken = async (code:string, state:string, realmId:string) => {
     setLoading(true);
     try {
-      const res = await axios.get(`https://localhost:7217/api/Auth/callback`, {
+      await axios.get(`${API_URL}/qbo-callback`, {
         params: { code, state, realmId },
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
       });
-
-      localStorage.setItem("qb_access_token", res.data?.accessToken ?? "");
-      localStorage.setItem("qb_refresh_token", res.data?.refreshToken ?? "");
-      localStorage.setItem("qb_realm_id", res.data?.realmId ?? "");
-
       message.success("Successfully connected to QuickBooks!");
-      login(); // update context
+      updateConnection("quickbooks", true);
     } catch (err) {
       message.error("Failed to connect to QuickBooks");
     } finally {
       setLoading(false);
     }
   };
-
-  const handleConnect = () => {
-    window.location.href = `${API_URL}/api/Auth/login`;
-  };
-
-  const handleSync = async (key: string) => {
-    setDownloadStates((prev) => ({ ...prev, [key]: true }));
+  
+  const fetchXeroAccessToken = async (code:string, sessionState:string, scope:string) => {
+    setLoading(true);
     try {
-      const token = localStorage.getItem("qb_access_token");
-      const realmId = localStorage.getItem("qb_realm_id");
-      const response = await axios.get(`${API_URL}/api/${key.charAt(0).toUpperCase() + key.slice(1)}/fetch?realmId=${realmId}`, {
+      await axios.get(`${API_URL}/xero-callback`, {
+        params: { code, sessionState, scope },
         headers: {
-          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
       });
-      if (response.status.error == null)
-        message.success(`Synced ${key}`);
+      message.success("Successfully connected to Xero!");
+      updateConnection("xero", true);
     } catch (err) {
-      message.error(`Failed to sync ${key}`);
+      message.error("Failed to connect to Xero");
     } finally {
-      setDownloadStates((prev) => ({ ...prev, [key]: false }));
+      setLoading(false);
+    }
+  };
+
+  const handleConnectQuickBooks = () => {
+    window.location.href = `${API_URL}/qbo-login`;
+  };
+
+  const handleConnectXero = () => {
+    window.location.href = `${API_URL}/xero-login`;
+  };
+  
+  const handleDisconnect = async (service:string,id:string) => {
+    try {
+      const response=await axios.get(`${API_URL}/disconnect-connection?id=${id}`, );
+      console.log(response);
+      message.success(`Disconnected from service ${service}`);
+      updateConnection(service.toLowerCase(), false);
+    } catch (err) {
+      message.error(`Failed to disconnect from ${id}`);
     }
   };
 
   if (loading) {
     return (
       <div style={{ display: "flex", height: "calc(100vh - 64px)", justifyContent: "center", alignItems: "center" }}>
-        <Spin size="large" tip="Connecting to QuickBooks..." />
+        <Spin size="large" tip="Connecting to accounting system..." />
       </div>
     );
   }
 
+  const hasConnectedAccount = connectedAccounts.quickbooks || connectedAccounts.xero;
+
   return (
     <div style={{ padding: 24, minHeight: "calc(100vh - 64px)" }}>
-      {!isLoggedIn ? (
+      {!hasConnectedAccount ? (
         <div style={{ maxWidth: 750, margin: "0 auto" }}>
           <Space direction="vertical" size="large" style={{ width: "100%" }}>
             <Typography.Title level={3} style={{ textAlign: "center" }}>
-              QuickBooks Integration
+              QuickBooks & Xero Integration
             </Typography.Title>
 
             <Alert
-              message="Connect Your QuickBooks Account"
-              description="Link your QuickBooks account to access and download your business data."
+              message="Connect Your Accounting Account"
+              description="Link your QuickBooks or Xero account to access and download your business data."
               type="info"
               showIcon
             />
@@ -137,41 +129,112 @@ const Dashboard = () => {
               <Button
                 type="primary"
                 icon={<LinkOutlined />}
-                onClick={handleConnect}
+                onClick={handleConnectQuickBooks}
                 style={{
                   backgroundColor: "#00a700",
                   borderColor: "#00a700",
                   width: 260,
                   height: 45,
                   fontSize: 16,
+                  marginBottom: 10,
                 }}
               >
                 Connect to QuickBooks
+              </Button>
+              <br />
+              <Button
+                type="primary"
+                icon={<LinkOutlined />}
+                onClick={handleConnectXero}
+                style={{
+                  backgroundColor: "#1A73E8",
+                  borderColor: "#1A73E8",
+                  width: 260,
+                  height: 45,
+                  fontSize: 16,
+                }}
+              >
+                Connect to Xero
               </Button>
             </div>
           </Space>
         </div>
       ) : (
-        <Space direction="vertical" size="large" style={{ width: "100%" }}>
-          <Alert
-            message="QuickBooks Connected"
-            description="Your QuickBooks account is connected. You can now download your business data."
-            type="success"
-            showIcon
-          />
-          <Row gutter={[24, 24]}>
-            {syncOptions.map(({ key, title, icon }) => (
-              <Col xs={24} sm={12} md={8} lg={6} key={key}>
-                <SyncCard
-                  title={title}
-                  icon={icon}
-                  loading={downloadStates[key]}
-                  onClick={() => handleSync(key)}
-                />
-              </Col>
-            ))}
+        <div>
+          <Typography.Title level={3}>Connected Accounting Systems</Typography.Title>
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <Card>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <Typography.Title level={4}>QuickBooks</Typography.Title>
+                    {connectedAccounts.quickbooks ? (
+                      <Tag color="green" icon={<CheckCircleOutlined />}>Connected</Tag>
+                    ) : (
+                      <Tag color="gray">Not Connected</Tag>
+                    )}
+                  </div>
+                  {connectedAccounts.quickbooks ? (
+                    <Button 
+                      icon={<DisconnectOutlined />} 
+                      danger 
+                      onClick={() => handleDisconnect("Quickbooks",connectedAccounts.quickbooksConnectionId)} // Use the correct connection ID
+                    >
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button
+                      type="primary"
+                      icon={<LinkOutlined />}
+                      onClick={handleConnectQuickBooks}
+                      style={{
+                        backgroundColor: "#00a700",
+                        borderColor: "#00a700",
+                      }}
+                    >
+                      Connect
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            </Col>
+            <Col xs={24} md={12}>
+              <Card>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div>
+                    <Typography.Title level={4}>Xero</Typography.Title>
+                    {connectedAccounts.xero ? (
+                      <Tag color="green" icon={<CheckCircleOutlined />}>Connected</Tag>
+                    ) : (
+                      <Tag color="gray">Not Connected</Tag>
+                    )}
+                  </div>
+                  {connectedAccounts.xero ? (
+                    <Button 
+                      icon={<DisconnectOutlined />} 
+                      danger 
+                      onClick={() => handleDisconnect("Xero",connectedAccounts.xeroConnectionId)} // Use the correct connection ID
+                    >
+                      Disconnect
+                    </Button>
+                  ) : (
+                    <Button
+                      type="primary"
+                      icon={<LinkOutlined />}
+                      onClick={handleConnectXero}
+                      style={{
+                        backgroundColor: "#1A73E8",
+                        borderColor: "#1A73E8",
+                      }}
+                    >
+                      Connect
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            </Col>
           </Row>
-        </Space>
+        </div>
       )}
     </div>
   );
