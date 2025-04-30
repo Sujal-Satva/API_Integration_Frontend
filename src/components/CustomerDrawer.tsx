@@ -55,10 +55,6 @@ export const CustomerDrawer: React.FC<CustomerDrawerProps> = ({
           <Input />
         </Form.Item>
 
-        <Form.Item name="companyName" label="Company Name">
-          <Input />
-        </Form.Item>
-
         <Form.Item name="emailAddress" label="Email">
           <Input />
         </Form.Item>

@@ -130,7 +130,7 @@ export const Customer = () => {
 
   const { connectedAccounts } = useAuth();
   const columns: ColumnsType<Account> = [
-    { title: "Name", dataIndex: "displayName", key: "name", sorter: true },
+    { title: "Name", dataIndex: "displayName", key: "name", sorter: true,width: 200, },
     { title: "Email", dataIndex: "emailAddress", key: "email", sorter: true },
     {
       title: "Address", dataIndex: "addressLine1", key: "addressLine1"
@@ -144,13 +144,13 @@ export const Customer = () => {
     {
       title: "Phone", dataIndex: "phoneNumber", key: "phoneNumber", sorter: true
     },
-    { title: "Source System", dataIndex: "sourceSystem", key: "sourceSystem" },
-    { title: "Last Updated", dataIndex: "lastUpdatedUtc", key: "lastUpdated", sorter: true },
+    { title: "Source System", dataIndex: "sourceSystem", key: "sourceSystem" ,width: 150, },
+    { title: "Last Updated", dataIndex: "lastUpdatedUtc", key: "lastUpdated", sorter: true,render: (text) => new Date(text).toLocaleString(), width: 240, },
     {
       title: "Actions",
       key: "actions",
       render: (text, record) => (
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 5 }}>
           <Button type="link" onClick={() => { openDrawer(record); }}>
             <EditOutlined />
           </Button>

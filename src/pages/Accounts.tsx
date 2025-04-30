@@ -2,7 +2,7 @@ import { Table, Typography, Input, Button, message, Select } from "antd";
 import { useEffect, useState } from "react";
 import { DownloadOutlined } from "@ant-design/icons";
 import { ColumnsType, TablePaginationConfig } from "antd/es/table";
-import type { SortOrder } from "antd/es/table/interface"; 
+import type { SortOrder } from "antd/es/table/interface";
 import { accountService } from "../services/accountService";
 import { useAuth } from "../context/AuthContext";
 
@@ -56,7 +56,7 @@ export const Accounts = () => {
         sortInfo.order === "descend" ? "desc" : "asc",
         sourceFilter // Pass the source filter to the API
       );
-     
+
       setData(result.data.data);
       setTotalRecords(result.data.totalRecords);
     } catch (error) {
@@ -86,32 +86,34 @@ export const Accounts = () => {
     }
   };
 
-    const downloadAccounts = async (platform:string) => {
-      try {
-        if(platform === "QuickBooks") {
-          setQuickBooksLoading(true);}
-        else {
-          setXeroLoading(true);
-        }
-        const response=await accountService.fetchAccountsFromQuickBooks(platform);
-        if (response.status === 200) {
-          message.success(response.message);
-          fetchData();
-        } else {
-          message.error("Failed to download accounts.");
-        }
-      } catch (error) {
-        console.error("Failed to download accounts:", error);
-        message.error("Failed to download accounts.");
-      } finally {
-        if(platform === "QuickBooks") {
-          setQuickBooksLoading(false);}
-        else {
-          setXeroLoading(false);
-        }
+  const downloadAccounts = async (platform: string) => {
+    try {
+      if (platform === "QuickBooks") {
+        setQuickBooksLoading(true);
       }
-    };
-  const {connectedAccounts} = useAuth();
+      else {
+        setXeroLoading(true);
+      }
+      const response = await accountService.fetchAccountsFromQuickBooks(platform);
+      if (response.status === 200) {
+        message.success(response.message);
+        fetchData();
+      } else {
+        message.error("Failed to download accounts.");
+      }
+    } catch (error) {
+      console.error("Failed to download accounts:", error);
+      message.error("Failed to download accounts.");
+    } finally {
+      if (platform === "QuickBooks") {
+        setQuickBooksLoading(false);
+      }
+      else {
+        setXeroLoading(false);
+      }
+    }
+  };
+  const { connectedAccounts } = useAuth();
   const columns: ColumnsType<Account> = [
     { title: "Name", dataIndex: "name", key: "name", sorter: true },
     {
@@ -121,7 +123,10 @@ export const Accounts = () => {
       sorter: true,
     },
     { title: "Classification", dataIndex: "classification", key: "classification" },
-    {title:"Description", dataIndex:"description", key:"description",width:260},  
+    {
+      title: "Description", dataIndex: "description", key: "description", width: 200,
+      render: (text) => { return  text && (text.length > 40 ? text.substring(0, 40) + "..." : text) },
+    },
     {
       title: "Balance",
       dataIndex: "currentBalance",
@@ -129,8 +134,8 @@ export const Accounts = () => {
       sorter: true,
     },
     { title: "Currency", dataIndex: "currency", key: "currency" },
-    { title: "Source System", dataIndex: "sourceSystem", key: "sourceSystem" },
-    {title:"Last Updated", dataIndex:"lastUpdated", key:"lastUpdated",sorter:true},
+    { title: "Source System", dataIndex: "sourceSystem", key: "sourceSystem", width: 150, },
+    { title: "Last Updated", dataIndex: "lastUpdated", key: "lastUpdated", sorter: true, width: 200, render: (text) => new Date(text).toLocaleString(), },
   ];
 
   return (
@@ -159,18 +164,18 @@ export const Accounts = () => {
             <Option value="Xero">Xero</Option>
           </Select>
 
-        {
-          connectedAccounts.quickbooks && (
-            <Button
-            type="primary"
-            icon={<DownloadOutlined />}
-            onClick={() => downloadAccounts("QuickBooks")}
-            loading={quickbooksLoading}
-            style={{ marginLeft: 16 }}
-          >
-            Sync from QuickBooks
-          </Button>
-          )}
+          {
+            connectedAccounts.quickbooks && (
+              <Button
+                type="primary"
+                icon={<DownloadOutlined />}
+                onClick={() => downloadAccounts("QuickBooks")}
+                loading={quickbooksLoading}
+                style={{ marginLeft: 16 }}
+              >
+                Sync from QuickBooks
+              </Button>
+            )}
           {connectedAccounts.xero && (
             <Button
               type="primary"
@@ -182,8 +187,8 @@ export const Accounts = () => {
               Sync from Xero
             </Button>
           )
-        }
-         
+          }
+
         </div>
       </div>
 

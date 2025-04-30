@@ -6,10 +6,10 @@ export interface CommonResponse<T> {
   message?: string;
   data?: T;
 }
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
+const API_URL = import.meta.env.VITE_API_URL;
 const instance = axios.create({
   baseURL: API_URL,
-  timeout: 10000,
+  timeout: 20000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -40,7 +40,7 @@ export const apiRequest = async <T>(
       ...config,
     });
     console.log(response);
-    if (response.status === 200) {
+    if (response.status === 200 && method !== "GET") {
       message.success(response.data.message || "Request successful");
     }
     return {

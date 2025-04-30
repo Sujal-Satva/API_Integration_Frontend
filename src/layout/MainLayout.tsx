@@ -121,16 +121,6 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         QuickBooks Dashboard
                     </Typography.Title>
                 </div>
-
-                {/* {isLoggedIn && (
-                    <Dropdown overlay={userMenu} placement="bottomRight" arrow>
-                        <Button type="text">
-                            <Space>
-                                Hi, User
-                            </Space>
-                        </Button>
-                    </Dropdown>
-                )} */}
             </Header>
 
             <Layout hasSider>
