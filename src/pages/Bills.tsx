@@ -1,339 +1,450 @@
+import { Table, Typography, Input, Button, message, Select, Form, Tag, Modal, Descriptions } from "antd";
+import { useEffect, useState } from "react";
+import { EditOutlined, PlusOutlined, SyncOutlined, EyeOutlined } from "@ant-design/icons";
+import { ColumnsType, TablePaginationConfig } from "antd/es/table";
+import type { SortOrder } from "antd/es/table/interface";
+import { billService,  } from "../services/billService";
 
-import React, { useState, useEffect } from "react";
-import {
-  Table,
-  Input,
-  Space,
-  Typography,
-  Card,
-  Button,
-  Modal,
-  message,
-} from "antd";
-import {
-  SearchOutlined,
-  DollarOutlined,
-  DownloadOutlined,
-  PlusOutlined,
-} from "@ant-design/icons";
-import {
-  Bill,
-  PaginationConfig,
-  Vendor,
-  Category,
-  Product,
-  Customer,
-  BillLine,
-} from "../interfaces";
-import { formatCurrency, formatDate } from "../utils";
-import {
-  fetchBills,
-  fetchVendors,
-  fetchCategories,
-  fetchProducts,
-  fetchCustomers,
-  syncBillsFromQuickBooks,
-} from "../services/billService";
-import BillForm from "./../components/BillForm";
-import Search from "antd/es/input/Search";
+import { useAuth } from "../context/AuthContext";
+
+import BillCommonForm from "../components/BillCommonForm";
+
 
 const { Title } = Typography;
+const { Search } = Input;
+const { Option } = Select;
 
-export const Bills: React.FC = () => {
-  // State management
+interface InvoiceTotal {
+  subtotal: number;
+  total: number;
+}
+
+interface LineItem {
+  // For Bill LineItems
+  lineId?: string;
+  lineNumber?: number | null;
+  description: string;
+  lineAmount?: number;
+  detailType?: string;
+  
+  // For Invoice LineItems
+  id?: string;
+  productId?: string;
+  quantity?: number;
+  rate?: number;
+  amount?: number;
+  accountCode?: string;
+  
+  itemDetail?: {
+    billableStatus: string | null;
+    itemCode: string;
+    description: string | null;
+    itemName: string | null;
+    quantity: number | null;
+    unitAmount: number | null;
+    taxType: string | null;
+    taxAmount: number | null;
+  } | null;
+  accountDetail?: {
+    customerId: string | null;
+    customerName: string | null;
+    accountCode: string;
+    accountName: string | null;
+    billableStatus: string | null;
+    taxType: string | null;
+  } | null;
+}
+
+interface Bill {
+  id: number;
+  externalId: string;
+  sourceSystem: string;
+  vendorName: string;
+  vendorId: string;
+  issueDate: string;
+  dueDate: string;
+  currency: string;
+  totalAmount: number;
+  status: string;
+  createdAt: string;
+  updatedAt: string;
+  lineItems: LineItem[];
+  vendorDetails: {
+    contactID: string;
+    name: string;
+  } | null;
+}
+
+interface SortInfo {
+  field: string;
+  order: SortOrder;
+}
+
+export const Bills = () => {
+  const [data, setData] = useState<Bill[]>([]);
+  const [totalRecords, setTotalRecords] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
-  const [bills, setBills] = useState<Bill[]>([]);
-  const [pagination, setPagination] = useState<PaginationConfig>({
-    current: 1,
-    pageSize: 10,
-    total: 0,
-    showSizeChanger: true,
-    pageSizeOptions: ["5", "10", "20", "50"],
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [searchText, setSearchText] = useState<string>("");
+  const [quickbooksLoading, setQuickBooksLoading] = useState<boolean>(false);
+  const [xeroLoading, setXeroLoading] = useState<boolean>(false);
+  const [sourceFilter, setSourceFilter] = useState<string>("");
+  const [showActive, setShowActive] = useState(true);
+  const [sortInfo, setSortInfo] = useState<SortInfo>({
+    field: "UpdatedAt",
+    order: "descend",
   });
-  const [searchText, setSearchText] = useState("");
-  const [sortField, setSortField] = useState<string>("txnDate");
-  const [sortOrder, setSortOrder] = useState<string>("desc");
-  const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [billLoading, setBillLoading] = useState<boolean>(false);
 
-  // Reference data
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-
-  // Initial data load
-  useEffect(() => {
-    loadBills();
-    loadReferenceData();
-  }, []);
-
-  const loadBills = async () => {
+  // For bill details modal
+  const [viewModalVisible, setViewModalVisible] = useState<boolean>(false);
+  const [currentBill, setCurrentBill] = useState<Bill | null>(null);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [form] = Form.useForm();
+  const fetchData = async () => {
     setLoading(true);
-    const result = await fetchBills(
-      pagination.current,
-      pagination.pageSize,
-      searchText,
-      sortField,
-      sortOrder
-    );
-
-    if (result) {
-      setBills(result.bills);
-      setPagination(result.pagination);
-    }
-    setLoading(false);
-  };
-
-  const loadReferenceData = async () => {
     try {
-      const [vendorsData, categoriesData, productsData, customersData] =
-        await Promise.all([
-          fetchVendors(),
-          fetchCategories(),
-          fetchProducts(),
-          fetchCustomers(),
-        ]);
+      const result = await billService.fetchBills(
+        page,
+        pageSize,
+        searchText,
+        sortInfo.field,
+        sortInfo.order === "descend" ? "desc" : "asc",
+        sourceFilter,
+        showActive
+      );
 
-      setVendors(vendorsData);
-      setCategories(categoriesData);
-      setProducts(productsData);
-      setCustomers(customersData);
+      setData(result.data.data);
+      setTotalRecords(result.data.totalRecords);
     } catch (error) {
-      console.error("Error loading reference data:", error);
+      console.error("Error fetching bills:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleTableChange = (paginationConfig: any, _: any, sorter: any) => {
-    const { field, order } = sorter;
-    const sortDirection = order === "descend" ? "desc" : "asc";
-    const sortColumn = field || "txnDate";
+  useEffect(() => {
+    fetchData();
+  }, [page, pageSize, searchText, sortInfo, sourceFilter, showActive]);
 
-    setSortField(sortColumn);
-    setSortOrder(sortDirection);
-    setLoading(true);
-    fetchBills(
-      paginationConfig.current,
-      paginationConfig.pageSize,
-      searchText,
-      sortColumn,
-      sortDirection
-    ).then((result) => {
-      if (result) {
-        setBills(result.bills);
-        setPagination(result.pagination);
-        setLoading(false);
-      }
-    });
-  };
+  useEffect(() => {
+    setPage(1);
+  }, [sourceFilter, showActive]);
 
-  const handleSearch = (value: string) => {
-    setSearchText(value);
-    setPagination({ ...pagination, current: 1 });
-    setLoading(true);
-    fetchBills(1, pagination.pageSize, searchText, sortField, sortOrder).then(
-      (result) => {
-        if (result) {
-          setBills(result.bills);
-          setPagination(result.pagination);
-          setLoading(false);
-        }
-      }
-    );
-  };
+  const handleTableChange = (
+    pagination: TablePaginationConfig,
+    filters: Record<string, (string | number | boolean)[] | null>,
+    sorter: any
+  ) => {
+    setPage(pagination.current || 1);
+    setPageSize(pagination.pageSize || 10);
 
-  const showModal = () => {
-    setModalVisible(true);
-  };
-
-  const handleCancel = () => {
-    setModalVisible(false);
-  };
-
-  const handleFormSuccess = () => {
-    setModalVisible(false);
-    loadBills();
-  };
-
-  const downloadBills = async () => {
-    setBillLoading(true);
-    const success = await syncBillsFromQuickBooks();
-    if (success) {
-      loadBills();
+    if (sorter.order) {
+      setSortInfo({
+        field: sorter.field,
+        order: sorter.order,
+      });
     }
-    setBillLoading(false);
   };
 
-  // Table columns
-  const columns = [
+  const downloadBills = async (platform: string) => {
+    try {
+      if (platform === "QuickBooks") {
+        setQuickBooksLoading(true);
+      } else {
+        setXeroLoading(true);
+      }
+      const response = await billService.syncBillsFromQuickBooks(platform);
+      if (response.status === 200) {
+        message.success(response.message);
+        fetchData();
+      } else {
+        message.error("Failed to download bills.");
+      }
+    } catch (error) {
+      console.error("Failed to download bills:", error);
+      message.error("Failed to download bills.");
+    } finally {
+      if (platform === "QuickBooks") {
+        setQuickBooksLoading(false);
+      } else {
+        setXeroLoading(false);
+      }
+    }
+  };
+
+  const getStatusTag = (status: string) => {
+    let color = '';
+    switch (status.toUpperCase()) {
+      case 'AUTHORISED':
+      case 'ACTIVE':
+        color = 'green';
+        break;
+      case 'VOIDED':
+      case 'ARCHIVED':
+        color = 'red';
+        break;
+      default:
+        color = 'blue';
+    }
+    return <Tag color={color}>{status}</Tag>;
+  };
+
+  const viewBillDetails = (bill: Bill) => {
+    setCurrentBill(bill);
+    setViewModalVisible(true);
+  };
+
+  const { connectedAccounts } = useAuth();
+  const columns: ColumnsType<Bill> = [
+    { title: "Vendor", dataIndex: "vendorName", key: "vendorName", sorter: true, width: 180 },
     {
-      title: "Bill #",
-      dataIndex: "quickBooksBillId",
-      key: "quickBooksBillId",
-      render: (text: string) => <span>{text}</span>,
-    },
-    {
-      title: "Transaction Date",
-      dataIndex: "txnDate",
-      key: "txnDate",
+      title: "Issue Date",
+      dataIndex: "issueDate",
+      key: "issueDate",
       sorter: true,
-      sortDirections: ["ascend", "descend"],
-      render: (text: string) => formatDate(text),
+      render: (text) => new Date(text).toLocaleDateString()
     },
     {
       title: "Due Date",
       dataIndex: "dueDate",
       key: "dueDate",
       sorter: true,
-      sortDirections: ["ascend", "descend"],
-      render: (text: string) => formatDate(text),
-    },
-    {
-      title: "Vendor",
-      dataIndex: "vendorName",
-      key: "vendorName",
-      render: (text: string) => text || "N/A",
+      render: (text) => new Date(text).toLocaleDateString()
     },
     {
       title: "Total Amount",
-      dataIndex: "totalAmt",
-      key: "totalAmt",
+      dataIndex: "totalAmount",
+      key: "totalAmount",
       sorter: true,
-      sortDirections: ["ascend", "descend"],
-      render: (text: number) => formatCurrency(text),
+      render: (amount, record) => `${amount} ${record.currency}`
     },
     {
-      title: "Balance",
-      dataIndex: "balance",
-      key: "balance",
-      sorter: true,
-      sortDirections: ["ascend", "descend"],
-      render: (text: number) => formatCurrency(text),
+      title: "Status",
+      dataIndex: "status",
+      key: "status",
+      render: (status) => getStatusTag(status)
+    },
+    { title: "Source", dataIndex: "sourceSystem", key: "sourceSystem", width: 120 },
+    {
+      title: "Last Updated",
+      dataIndex: "updatedAt",
+      key: "updatedAt",
+      render: (text) => new Date(text).toLocaleString(),
+      width: 180
     },
     {
-      title: "Notes",
-      dataIndex: "privateNote",
-      key: "privateNote",
-      render: (text: string) => {
-        return text ? <span>{text}</span> : "-";
-      },
-    },
-    {
-      title: "Account",
-      dataIndex: "apAccountName",
-      key: "apAccountName",
-      render: (text: string) => text || "N/A",
-    },
+      title: "Actions",
+      key: "actions",
+      width: 120,
+      render: (_, record) => (
+        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+          <Button
+            type="link"
+            onClick={() => viewBillDetails(record)}
+            icon={<EyeOutlined />}
+          />
+          {/* <Button 
+            type="link" 
+            onClick={() => openDrawerToEdit(record)} 
+            icon={<EditOutlined />} 
+          /> */}
+        </div>
+      ),
+    }
   ];
 
-  const billLineColumns = [
-    { title: "Line #", dataIndex: "lineNum", key: "lineNum" },
-    { title: "Description", dataIndex: "description", key: "description" },
-    {
-      title: "Amount",
-      dataIndex: "amount",
-      key: "amount",
-      render: (text: number) => formatCurrency(text),
-    },
-    { title: "Detail Type", dataIndex: "detailType", key: "detailType" },
-    { title: "Account", dataIndex: "accountName", key: "accountName" },
-    { title: "Customer", dataIndex: "customerName", key: "customerName" },
-    { title: "Product", dataIndex: "productName", key: "productName" },
-    {
-      title: "Billable Status",
-      dataIndex: "billableStatus",
-      key: "billableStatus",
-    },
-    { title: "Quantity", dataIndex: "qty", key: "qty" },
-    {
-      title: "Unit Price",
-      dataIndex: "unitPrice",
-      key: "unitPrice",
-      render: (text: number) => formatCurrency(text),
-    },
-  ];
+  const openDrawer = (bill?: Bill) => {
 
-  const SearchComponent = () => (
-    <Space
-      style={{ marginBottom: 16, display: "flex", justifyContent: "flex-end" }}
-    >
-      <Search
-        placeholder="Search invoices"
-        allowClear
-        onSearch={handleSearch}
-        onChange={(e) => {
-          setSearchText(e.target.value);
-          console.log(e.target.value);
-        }}
-        style={{ width: 250, marginRight: 8 }}
-      />
-      <Button type="primary" onClick={showModal} icon={<PlusOutlined />}>
-        Add Bill
-      </Button>
-      <Button
-        type="primary"
-        icon={<DownloadOutlined />}
-        onClick={downloadBills}
-        loading={billLoading}
-      >
-        Sync Bills
-      </Button>
-    </Space>
-  );
+    setDrawerVisible(true);
+  };
 
+  const closeDrawer = () => {
+    setDrawerVisible(false);
+    form.resetFields();
+  };
+
+  
+ 
+  const formatCurrency = (amount: number, currency: string) => {
+    return `${amount.toLocaleString()} ${currency}`;
+  };
   return (
-    <Card>
-      <Space direction="vertical" style={{ width: "100%" }}>
-        <Title level={4}>
-          <DollarOutlined /> Bills
-        </Title>
-        <SearchComponent />
-        <Table
-          columns={columns}
-          dataSource={bills}
-          rowKey="id"
-          pagination={pagination}
-          loading={loading}
-          onChange={handleTableChange}
-          expandable={{
-            expandedRowRender: (record: Bill) => (
-              <Card
-                title="Bill Lines"
-                size="small"
-                style={{ marginBottom: 16 }}
-              >
-                <Table
-                  columns={billLineColumns}
-                  dataSource={record.billLines}
-                  rowKey="id"
-                  pagination={false}
-                />
-              </Card>
-            ),
-          }}
-        />
-      </Space>
+    <div className="p-6">
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 0 }}>
+        <Title level={2}>Bills</Title>
+        <Button type="primary" onClick={() => openDrawer()} style={{ marginBottom: 10 }}>
+          <PlusOutlined /> Add Bill
+        </Button>
+      </div>
 
-      <Modal
-        title="Add New Bill"
-        open={modalVisible}
-        onCancel={handleCancel}
-        width={1000}
-        footer={null}
-      >
-        <BillForm
-          vendors={vendors}
-          categories={categories}
-          products={products}
-          customers={customers}
-          onCancel={handleCancel}
-          onSuccess={handleFormSuccess}
-          loading={loading}
-          setLoading={setLoading}
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+        <Search
+          placeholder="Search by vendor name"
+          allowClear
+          onSearch={(value) => {
+            setPage(1);
+            setSearchText(value);
+          }}
+          style={{ width: 250 }}
         />
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <Select
+            defaultValue=""
+            onChange={(value) => setSourceFilter(value)}
+            style={{ width: 120 }}
+          >
+            <Option value="">All Sources</Option>
+            <Option value="QuickBooks">QuickBooks</Option>
+            <Option value="Xero">Xero</Option>
+          </Select>
+
+          {connectedAccounts.quickbooks && (
+            <Button
+              type="primary"
+              icon={<SyncOutlined />}
+              onClick={() => downloadBills("QuickBooks")}
+              loading={quickbooksLoading}
+            >
+              QuickBooks
+            </Button>
+          )}
+
+          {connectedAccounts.xero && (
+            <Button
+              type="primary"
+              icon={<SyncOutlined />}
+              onClick={() => downloadBills("Xero")}
+              loading={xeroLoading}
+            >
+              Xero
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Table
+        columns={columns}
+        dataSource={data}
+        loading={loading}
+        rowKey="id"
+        pagination={{
+          current: page,
+          pageSize,
+          total: totalRecords,
+          showSizeChanger: true,
+        }}
+        onChange={handleTableChange}
+      />
+
+      <BillCommonForm 
+        visible={drawerVisible}
+        onClose={closeDrawer}
+        fetchData={fetchData}
+      />
+
+      {/* <BillFormDrawer
+        visible={drawerVisible}
+        onClose={() => setDrawerVisible(false)}
+        form={form}
+        customers={customers}
+        products={products}
+        lineItems={lineItems}
+        onAddLineItem={handleAddLineItem}
+        onRemoveLineItem={handleRemoveLineItem}
+        onUpdateLineItem={handleUpdateLineItem}
+        onCustomerChange={handleCustomerChange}
+        onFinish={handleSubmitInvoice}
+        isEditing={!!editingInvoice}
+        loading={savingInvoice}
+        lineItemsError={lineItemsError}
+        setLineItems={setLineItems}
+      /> */}
+
+      {/* Bill Details Modal */}
+      <Modal
+        title={`Bill Details - ${currentBill?.vendorName || ''}`}
+        open={viewModalVisible}
+        onCancel={() => setViewModalVisible(false)}
+        width={800}
+        footer={[
+          <Button key="close" onClick={() => setViewModalVisible(false)}>
+            Close
+          </Button>
+        ]}
+      >
+        {currentBill && (
+          <div>
+            <Descriptions bordered column={2}>
+              <Descriptions.Item label="Vendor">{currentBill.vendorName}</Descriptions.Item>
+              <Descriptions.Item label="Source">{currentBill.sourceSystem}</Descriptions.Item>
+              <Descriptions.Item label="Issue Date">{new Date(currentBill.issueDate).toLocaleDateString()}</Descriptions.Item>
+              <Descriptions.Item label="Due Date">{new Date(currentBill.dueDate).toLocaleDateString()}</Descriptions.Item>
+              <Descriptions.Item label="Total Amount">{formatCurrency(currentBill.totalAmount, currentBill.currency)}</Descriptions.Item>
+              <Descriptions.Item label="Status">{getStatusTag(currentBill.status)}</Descriptions.Item>
+            </Descriptions>
+
+            <Title level={4} style={{ marginTop: 16 }}>Line Items</Title>
+            <Table
+              dataSource={currentBill.lineItems}
+              rowKey="lineId"
+              pagination={false}
+              size="small"
+              columns={[
+                {
+                  title: 'Description',
+                  dataIndex: 'description',
+                  key: 'description',
+                  width: '30%'
+                },
+                {
+                  title: 'Type',
+                  dataIndex: 'detailType',
+                  key: 'detailType',
+                  render: (text) => {
+                    const displayText = text === 'ItemBasedExpenseLineDetail' ? 'Item' :
+                      text === 'AccountBasedExpenseLineDetail' ? 'Account' : text;
+                    return displayText;
+                  }
+                },
+                {
+                  title: 'Item/Account Code',
+                  key: 'code',
+                  render: (_, record) => {
+                    if (record.itemDetail) {
+                      return record.itemDetail.itemCode;
+                    } else if (record.accountDetail) {
+                      return record.accountDetail.accountCode;
+                    }
+                    return '-';
+                  }
+                },
+                {
+                  title: 'Quantity',
+                  key: 'quantity',
+                  render: (_, record) => {
+                    return record.itemDetail?.quantity || '-';
+                  }
+                },
+                {
+                  title: 'Unit Amount',
+                  key: 'unitAmount',
+                  render: (_, record) => {
+                    return record.itemDetail?.unitAmount || '-';
+                  }
+                },
+                {
+                  title: 'Line Amount',
+                  dataIndex: 'lineAmount',
+                  key: 'lineAmount',
+                  render: (amount) => formatCurrency(amount, currentBill.currency)
+                }
+              ]}
+            />
+          </div>
+        )}
       </Modal>
-    </Card>
+    </div>
   );
 };
-
-export default Bills;

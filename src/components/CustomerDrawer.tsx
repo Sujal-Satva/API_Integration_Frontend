@@ -1,5 +1,6 @@
 import { Drawer, Form, Input, Button, message } from "antd";
 import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
 
 interface CustomerDrawerProps {
   visible: boolean;
@@ -19,7 +20,7 @@ export const CustomerDrawer: React.FC<CustomerDrawerProps> = ({
   loading,
 }) => {
   const [submitPlatform, setSubmitPlatform] = useState<string>("");
-
+  const { connectedAccounts } = useAuth();
   useEffect(() => {
     if (customer) {
       form.setFieldsValue(customer);
@@ -27,12 +28,13 @@ export const CustomerDrawer: React.FC<CustomerDrawerProps> = ({
       form.resetFields();
     }
   }, [customer, form]);
-
+  
   const handleFinish = (values: any) => {
     if (!submitPlatform) {
       message.error("Please select a platform to submit.");
       return;
     }
+    console.log(values, submitPlatform);
     onSubmit(customer ? {
       ...values, externalId: submitPlatform == "QuickBooks" ? customer.quickBooksId : customer.xeroId
     } : values, submitPlatform);
@@ -78,25 +80,30 @@ export const CustomerDrawer: React.FC<CustomerDrawerProps> = ({
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
           {!customer && (
             <>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                onClick={() => setSubmitPlatform("QuickBooks")}
-              >
-                Add to QuickBooks
-              </Button>
-              <Button
-                type="primary"
-                htmlType="submit"
-                loading={loading}
-                onClick={() => setSubmitPlatform("Xero")}
-              >
-                Add to Xero
-              </Button>
+              {connectedAccounts?.quickbooks && (
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={loading}
+                  onClick={() => setSubmitPlatform("QuickBooks")}
+                >
+                  Add to QuickBooks
+                </Button>
+              )}
+              {connectedAccounts?.xero && (
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  loading={loading}
+                  onClick={() => setSubmitPlatform("Xero")}
+                >
+                  Add to Xero
+                </Button>
+              )}
             </>
           )}
-          {customer?.quickBooksId && (
+
+          {customer?.sourceSystem === "QuickBooks" && (
             <Button
               type="primary"
               htmlType="submit"
@@ -106,7 +113,8 @@ export const CustomerDrawer: React.FC<CustomerDrawerProps> = ({
               Update in QuickBooks
             </Button>
           )}
-          {customer?.xeroId && (
+
+          {customer?.sourceSystem === "Xero" && (
             <Button
               type="primary"
               htmlType="submit"
@@ -116,7 +124,9 @@ export const CustomerDrawer: React.FC<CustomerDrawerProps> = ({
               Update in Xero
             </Button>
           )}
+
         </div>
+
 
       </Form>
     </Drawer>

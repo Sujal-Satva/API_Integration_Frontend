@@ -3,21 +3,21 @@ import { apiRequest } from "./../apiServices/apiCall"; // adjust path as needed
 
 export const accountService = {
   getAllAccounts: async (
-    realmId: string | null,
     page: number,
     pageSize: number,
     searchText: string,
     sortField: string,
     sortOrder: string,
+    pagination:boolean=true,
     sourceFiler: string 
   ) => {
     const params = {
-      realmId,
       page,
       pageSize,
       search: searchText,
       sortColumn: sortField,
       sortDirection: sortOrder,
+      pagination: pagination,
       sourceSystem: sourceFiler,
     };
 

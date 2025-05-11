@@ -9,7 +9,7 @@ export interface CommonResponse<T> {
 const API_URL = import.meta.env.VITE_API_URL;
 const instance = axios.create({
   baseURL: API_URL,
-  timeout: 20000,
+  timeout: 1000000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -39,7 +39,6 @@ export const apiRequest = async <T>(
       data,
       ...config,
     });
-    console.log(response);
     if (response.status === 200 && method !== "GET") {
       message.success(response.data.message || "Request successful");
     }
@@ -60,6 +59,9 @@ export const apiRequest = async <T>(
         data: undefined,
       };
     }
+    console.log(err.response?.data);
+    const obj = JSON.parse((err.response?.data as any)?.data || "{}");
+    message.error(obj?.Fault?.Error[0]?.Detail || "An unexpected error occurred.");
     let errorMessage = "An unexpected error occurred.";
     if (err.code === "ECONNABORTED") {
       errorMessage = "Request timeout.";
@@ -69,7 +71,7 @@ export const apiRequest = async <T>(
     } else if (err.message) {
       errorMessage = err.message;
     }
-
+    // message.error(errorMessage);
     return {
       status: statusCode,
       message: errorMessage,

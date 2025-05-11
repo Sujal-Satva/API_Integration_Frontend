@@ -9,12 +9,12 @@ import axios from "axios";
 
 interface AuthContextType {
   connectedAccounts: {
-    quickbooksConnectionId: string;
-    xeroConnectionId: string;
+    quickbooksConnectionId: string | null;
+    xeroConnectionId: string | null;
     quickbooks: boolean;
     xero: boolean;
   };
-  updateConnection: (platform: string, status: boolean) => void;
+  updateConnection: (provider: "xero" | "quickbooks", isConnected: boolean, connectionId?: string | null) => void;
   checkConnectionStatus: () => Promise<void>;
 }
 
@@ -34,6 +34,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
 
   const checkConnectionStatus = async () => {
     try {
+      setLoading(true);
       const response = await axios.get(`${API_URL}/connection-status`);
       setConnectedAccounts({
         quickbooks: response.data.data.quickbooksConnected || false,
@@ -52,12 +53,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({
     checkConnectionStatus();
   }, []);
 
-  const updateConnection = (platform: string, status: boolean) => {
+  const updateConnection = (provider: "xero" | "quickbooks", isConnected: boolean, connectionId?: string | null) => {
     setConnectedAccounts(prev => ({
       ...prev,
-      [platform.toLowerCase()]: status
+      [`${provider}`]: isConnected,
+      [`${provider}ConnectionId`]: connectionId ?? null,
     }));
   };
+  
 
   if (loading) {
     return (

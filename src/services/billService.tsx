@@ -1,7 +1,4 @@
-import axios from "axios";
-import { message } from "antd";
-
-
+import { apiRequest } from "./../apiServices/apiCall"; // adjust path as needed
 import {
   Bill,
   ApiResponse,
@@ -13,148 +10,82 @@ import {
   Customer,
 } from "../interfaces";
 
-const API_URL = import.meta.env.VITE_API_URL;
-
-export const fetchBills = async (
-  page: number = 1,
-  pageSize: number = 10,
-  search: string = "",
-  sortColumn: string = "txnDate",
-  sortDirection: string = "desc"
-): Promise<{ bills: Bill[]; pagination: PaginationConfig } | null> => {
-  try {
-   
-
-    const response = await axios.get<ApiResponse<Bill[]>>(
-      `${API_URL}/api/Bills?page=${page}&pageSize=${pageSize}&search=${search}&sortColumn=${sortColumn}&sortDirection=${sortDirection}`,
-      
-    );
-
-    return {
-      bills: response.data.data,
-      pagination: {
-        current: response.data.page || 1,
-        pageSize: response.data.pageSize || 10,
-        total: response.data.totalRecords || 0,
-        showSizeChanger: true,
-        pageSizeOptions: ["5", "10", "20", "50"],
-      },
+export const billService = {
+  fetchBills: async (
+    page: number = 1,
+    pageSize: number = 10,
+    search: string = "",
+    sortColumn: string = "UpdatedAt",
+    sortDirection: string = "desc",
+    sourceFilter: string = "all",
+    showInactive: boolean = false,
+  ) => {
+    const params = {
+      page,
+      pageSize,
+      search,
+      sortColumn,
+      sortDirection,
+      sourceSystem:sourceFilter,
+      active:showInactive
     };
-  } catch (error) {
-    console.error("Error fetching bills:", error);
-    message.error("Failed to load bills. Please try again later.");
-    return null;
-  }
+
+    return await apiRequest<ApiResponse<Bill[]>>("GET", `/api/Bills`, undefined, { params });
+  },
+
+  syncBillsFromQuickBooks: async (platform:string) => {
+    return await apiRequest<any>("GET", `/api/Bills/fetch-${platform=="QuickBooks" ? "qbo" : "xero"}`);
+  },
+
+  saveBill: async (payload:object,platform:string) => {
+    return await apiRequest<any>("POST", `/api/bills/add?platform=${platform}`, payload);
+  },
 };
 
-// Sync bills from QuickBooks
-export const syncBillsFromQuickBooks = async (): Promise<boolean> => {
-  try {
-    
-
-    await axios.get(`${API_URL}/api/Bills/fetch`);
-    message.success("Bills downloaded successfully!");
-    return true;
-  } catch (error) {
-    console.error("Failed to download bills:", error);
-    message.error("Failed to download bills from QuickBooks.");
-    return false;
-  }
+export const vendorService = {
+  fetchVendors: async () => {
+    return await apiRequest<ApiResponse<Vendor[]>>("GET", `/api/Vendor`, undefined, {
+      params: { pagination: false, active: true },
+    });
+  },
 };
 
-// Save bill to QuickBooks
-export const saveBill = async (
-  payload: QuickBooksBillPayload
-): Promise<boolean> => {
-  try {
-  
-    const response = await axios.post(
-      `${API_URL}/api/bills/add`,
-      payload,
-      {
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
-    );
-
-    if (response.data.error) {
-      const errorObj = JSON.parse(response.data.error);
-      message.error(errorObj.Fault?.Error[0]?.Detail || "Error saving bill");
-      return false;
-    }
-
-    message.success("Bill saved successfully!");
-    return true;
-  } catch (error) {
-    const errorObj = JSON.parse(error.response.data.error);
-    message.error(errorObj.Fault?.Error[0]?.Detail || "Error saving bill");
-    return false;
-  }
+export const categoryService = {
+  fetchCategories: async () => {
+    return await apiRequest<ApiResponse<Category[]>>("GET", `/api/Account/all`, undefined, {
+      params: { pagination: false },
+    });
+  },
 };
 
-// Fetch vendors
-export const fetchVendors = async (): Promise<Vendor[]> => {
-  try {
-  
-
-    const response = await axios.get<ApiResponse<Vendor[]>>(
-      `${API_URL}/api/Vendor?pagination=false&active=true`,
-    );
-
-    return response.data.data;
-  } catch (error) {
-    console.error("Error fetching vendors:", error);
-    message.error("Failed to load vendors data.");
-    return [];
-  }
+export const productService = {
+  fetchProducts: async () => {
+    return await apiRequest<ApiResponse<Product[]>>("GET", `/api/Product/all`, undefined, {
+      params: { pagination: false, active: true },
+    });
+  },
 };
 
-// Fetch categories/accounts
-export const fetchCategories = async (): Promise<Category[]> => {
-  try {
-  
+export const customerService = {
+  fetchCustomers: async () => {
+    return await apiRequest<ApiResponse<Customer[]>>("GET", `/api/Customer/all`, undefined, {
+      params: { pagination: false, active: true, sourceSystem: "xero" },
+    });
+  },
 
-    const response = await axios.get<ApiResponse<Category[]>>(
-      `${API_URL}/api/Account/all?pagination=false`,
-     
-    );
+  fetchCustomer: async (platform: string) => {
+    return await apiRequest<any>("GET", `/api/Customer/fetch-${platform == "QuickBooks" ? "qbo" : "xero"}`);
+  },
 
-    return response.data.data;
-  } catch (error) {
-    console.error("Error fetching categories:", error);
-    message.error("Failed to load categories data.");
-    return [];
-  }
-};
+  addCustomer: async (data: any, platform: string) => {
+    return await apiRequest<any>("POST", `/api/Customer/add?platform=${platform}`, data);
+  },
 
-// Fetch products
-export const fetchProducts = async (): Promise<Product[]> => {
-  try {
- 
-    const response = await axios.get<ApiResponse<Product[]>>(
-      `${API_URL}/api/Product?pagination=false&active=true`,
-    );
+  editCustomer: async (data: any, id: string, platform: string) => {
+    return await apiRequest<any>("PUT", `/api/Customer/edit?id=${id}&platform=${platform}`, data);
+  },
 
-    return response.data.data;
-  } catch (error) {
-    console.error("Error fetching products:", error);
-    message.error("Failed to load products data.");
-    return [];
-  }
-};
-
-// Fetch customers
-export const fetchCustomers = async (): Promise<Customer[]> => {
-  try {
-    const response = await axios.get<ApiResponse<Customer[]>>(
-      `${API_URL}/api/Customer/all?pagination=false&active=true`,
-    );
-
-    return response.data.data;
-  } catch (error) {
-    console.error("Error fetching customers:", error);
-    message.error("Failed to load customers data.");
-    return [];
-  }
+  updateCustomerStatus: async (id: string, platform: string, status: string) => {
+    return await apiRequest<any>("PUT", `/api/Customer/update-status?id=${id}&platform=${platform}&status=${status}`);
+  },
 };

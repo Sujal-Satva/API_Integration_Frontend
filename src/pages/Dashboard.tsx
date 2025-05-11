@@ -33,7 +33,7 @@ const Dashboard = () => {
     const realmId = searchParams.get("realmId");
     const sessionState = searchParams.get("session_state");
     const scope = searchParams.get("scope");
-    
+
     if (code && state && realmId) {
       fetchQuickBooksAccessToken(code, state, realmId);
     }
@@ -41,38 +41,41 @@ const Dashboard = () => {
       fetchXeroAccessToken(code, sessionState, scope);
     }
   }, [searchParams]);
-  
-  const fetchQuickBooksAccessToken = async (code:string, state:string, realmId:string) => {
+  const fetchQuickBooksAccessToken = async (code: string, state: string, realmId: string) => {
     setLoading(true);
     try {
-      await axios.get(`${API_URL}/qbo-callback`, {
+      const response = await axios.get(`${API_URL}/qbo-callback`, {
         params: { code, state, realmId },
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
       });
+      const connectionId = response.data?.data?.realmId || null;
       message.success("Successfully connected to QuickBooks!");
-      updateConnection("quickbooks", true);
+      updateConnection("quickbooks", true, connectionId);
+      window.history.replaceState({}, document.title, window.location.pathname);
     } catch (err) {
       message.error("Failed to connect to QuickBooks");
     } finally {
       setLoading(false);
     }
   };
-  
-  const fetchXeroAccessToken = async (code:string, sessionState:string, scope:string) => {
+
+  const fetchXeroAccessToken = async (code: string, sessionState: string, scope: string) => {
     setLoading(true);
     try {
-      await axios.get(`${API_URL}/xero-callback`, {
+      const response = await axios.get(`${API_URL}/xero-callback`, {
         params: { code, sessionState, scope },
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
         },
       });
+      const connectionId = response.data?.data?.tenantId || null;
       message.success("Successfully connected to Xero!");
-      updateConnection("xero", true);
+      updateConnection("xero", true, connectionId);
+      window.history.replaceState({}, document.title, window.location.pathname);
     } catch (err) {
       message.error("Failed to connect to Xero");
     } finally {
@@ -87,13 +90,16 @@ const Dashboard = () => {
   const handleConnectXero = () => {
     window.location.href = `${API_URL}/xero-login`;
   };
-  
-  const handleDisconnect = async (service:string,id:string) => {
+
+  const handleDisconnect = async (service: string, id: string) => {
     try {
-      const response=await axios.get(`${API_URL}/disconnect-connection?id=${id}`, );
-      console.log(response);
+      const response = await axios.get(`${API_URL}/disconnect-connection?id=${id}`,);
       message.success(`Disconnected from service ${service}`);
-      updateConnection(service.toLowerCase(), false);
+      if (service.toLowerCase() === "xero" || service.toLowerCase() === "quickbooks") {
+        updateConnection(service.toLowerCase() as "xero" | "quickbooks", false, null);
+      } else {
+        message.error(`Invalid service: ${service}`);
+      }
     } catch (err) {
       message.error(`Failed to disconnect from ${id}`);
     }
@@ -175,10 +181,16 @@ const Dashboard = () => {
                     )}
                   </div>
                   {connectedAccounts.quickbooks ? (
-                    <Button 
-                      icon={<DisconnectOutlined />} 
-                      danger 
-                      onClick={() => handleDisconnect("Quickbooks",connectedAccounts.quickbooksConnectionId)} // Use the correct connection ID
+                    <Button
+                      icon={<DisconnectOutlined />}
+                      danger
+                      onClick={() => {
+                        if (connectedAccounts.quickbooksConnectionId) {
+                          handleDisconnect("Quickbooks", connectedAccounts.quickbooksConnectionId);
+                        } else {
+                          message.error("Connection ID for QuickBooks is missing.");
+                        }
+                      }}
                     >
                       Disconnect
                     </Button>
@@ -210,10 +222,16 @@ const Dashboard = () => {
                     )}
                   </div>
                   {connectedAccounts.xero ? (
-                    <Button 
-                      icon={<DisconnectOutlined />} 
-                      danger 
-                      onClick={() => handleDisconnect("Xero",connectedAccounts.xeroConnectionId)} // Use the correct connection ID
+                    <Button
+                      icon={<DisconnectOutlined />}
+                      danger
+                      onClick={() => {
+                        if (connectedAccounts.xeroConnectionId) {
+                          handleDisconnect("Xero", connectedAccounts.xeroConnectionId);
+                        } else {
+                          message.error("Connection ID for Xero is missing.");
+                        }
+                      }} // Use the correct connection ID
                     >
                       Disconnect
                     </Button>

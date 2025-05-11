@@ -5,8 +5,6 @@ import {
     Typography,
     Button,
     theme,
-    Dropdown,
-    Space,
 } from "antd";
 import {
     DashboardOutlined,
@@ -19,7 +17,6 @@ import {
     UserSwitchOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
 
 const { Header, Sider, Content } = Layout;
 
@@ -32,8 +29,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { token } = theme.useToken();
-    // const { isLoggedIn, logout } = useAuth();
-
+  
     const fullMenuItems = [
         {
             key: "/",
@@ -50,50 +46,29 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
             icon: <AccountBookOutlined />,
             label: "Accounts",
         },
-        // {
-        //     key: "/products",
-        //     icon: <ShoppingOutlined />,
-        //     label: "Products",
-        // },
-        // {
-        //     key: "/invoices",
-        //     icon: <ShoppingOutlined />,
-        //     label: "Invoices",
-        // },
-        // {
-        //     key: "/vendors",
-        //     icon: <ShoppingOutlined />,
-        //     label: "Vendors",
-        // },
-        // {
-        //     key: "/bills",
-        //     icon: <ShoppingOutlined />,
-        //     label: "Bills",
-        // },
+        {
+            key: "/products",
+            icon: <ShoppingOutlined />,
+            label: "Products",
+        },
+        {
+            key: "/invoices",
+            icon: <ShoppingOutlined />,
+            label: "Invoices",
+        },
+        {
+            key: "/vendors",
+            icon: <ShoppingOutlined />,
+            label: "Vendors",
+        },
+        {
+            key: "/bills",
+            icon: <ShoppingOutlined />,
+            label: "Bills",
+        },
     ];
 
-    // const menuItems = isLoggedIn
-    //     ? fullMenuItems
-    //     : fullMenuItems.filter((item) => item.key === "/");
-
-    // const userMenu = (
-    //     <Menu
-    //         items={[
-    //             {
-    //                 key: "profile",
-    //                 icon: <UserSwitchOutlined />,
-    //                 label: "Profile",
-    //             },
-    //             // {
-    //             //     key: "logout",
-    //             //     icon: <LogoutOutlined />,
-    //             //     label: "Logout",
-    //             //     onClick: logout,
-    //             // },
-    //         ]}
-    //     />
-    // );
-
+ 
     return (
         <Layout style={{ minHeight: "100vh" }}>
             <Header
@@ -118,7 +93,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         style={{ fontSize: "16px", marginRight: 16 }}
                     />
                     <Typography.Title level={4} style={{ margin: 0 }}>
-                        QuickBooks Dashboard
+                        QuickBooks & Xero Integration
                     </Typography.Title>
                 </div>
             </Header>
@@ -132,7 +107,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                         overflow: "auto",
                         height: "100vh",
                         position: "fixed",
-                        top: 64,
+                        top: 60,
                         left: 0,
                         bottom: 0,
                         background: "#fff",
@@ -163,7 +138,7 @@ export const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
                             padding: 24,
                             minHeight: 280,
                             background: token.colorBgContainer,
-                            
+
                         }}
                     >
                         {children}

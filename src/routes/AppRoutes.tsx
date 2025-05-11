@@ -4,10 +4,11 @@ import { PrivateRoute } from "../components/PrivateRoute";
 import Dashboard from "../pages/Dashboard";
 import { Customer } from "../pages/Customer";
 import { Accounts } from "../pages/Accounts";
-import Product from "../pages/Product";
-import { Invoice } from "../pages/Invoice";
-import Vendor from "../pages/Vendor";
-import Bills from "../pages/Bills";
+import { Product } from "../pages/Product";
+import Invoice from "../pages/Invoice";
+// import Vendor from "../pages/Vendor";
+import { Bills } from "../pages/Bills";
+import { Vendor } from "../pages/Vendor";
 interface AppRoute {
   path: string;
   element: JSX.Element;
@@ -16,9 +17,9 @@ interface AppRoute {
 
 const routes: AppRoute[] = [
   { path: "/", element: <Dashboard /> },
-  { path: "/customers", element: <Customer />,  },
+  { path: "/customers", element: <Customer />, },
   { path: "/accounts", element: <Accounts />, },
-  { path: "/products", element: <Product />,  },
+  { path: "/products", element: <Product />, },
   { path: "/invoices", element: <Invoice />, },
   { path: "/vendors", element: <Vendor />,  },
   { path: "/bills", element: <Bills />, },

@@ -16,31 +16,46 @@ export interface Product {
   unitPrice: number;
 }
 
+
 export interface LineItem {
-  id: number;
-  productId?: string;
+  lineId: string;
+  lineNumber: number | null;
+  itemCode: string;
+  itemName: string;
   description: string;
   quantity: number;
-  rate: number;
-  amount: number;
+  unitAmount: number;
+  taxType: string;
+  taxAmount: number | null;
+  lineAmount: number;
+  accountCode: string | null;
+  accountName: string | null;
 }
 
 export interface Invoice {
-  invoiceId: number;
-  customerId: number;
-  customerEmail: string;
+  id: number;
+  invoiceId: string;
+  invoiceNumber: string;
+  reference: string;
+  status: string;
+  currencyCode: string;
   invoiceDate: string;
   dueDate: string;
-  store: string;
+  customerId: string;
+  customerName: string;
   billingAddress: string;
   subtotal: number;
+  taxAmount: number;
   total: number;
-  status?: string;
+  amountDue: number;
+  amountPaid: number;
+  lineAmountTypes: string;
+  sourceSystem: string;
+  sendLater: boolean;
+  createdAt: string;
+  updatedAt: string;
   lineItems: LineItem[];
-  createdAt?: string;
-  updatedAt?: string;
 }
-
 export interface PaginationParams {
   current: number;
   pageSize: number;
@@ -71,9 +86,9 @@ export interface Product {
   unitPrice: number;
   taxable: boolean;
   description: string;
-  incomeAccountValue: string; // Changed from incomeAccountValue
+  incomeAccountValue: string; 
   incomeAccountName: string;
-  expenseAccountValue?: string; // Changed from expenseAccountValue
+  expenseAccountValue?: string;
   expenseAccountName?: string;
 }
 

@@ -1,6 +1,6 @@
-import { Table, Typography, Input, Button, message, Select, Form, Popconfirm } from "antd";
+import { Table, Typography, Input, Button, message, Select, Form, Popconfirm, Radio, Switch } from "antd";
 import { useEffect, useState } from "react";
-import { DeleteOutlined, DownloadOutlined, EditOutlined } from "@ant-design/icons";
+import { EditOutlined, PlusOutlined, SyncOutlined } from "@ant-design/icons";
 import { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { SortOrder } from "antd/es/table/interface";
 import { customerService } from "../services/customerService";
@@ -12,10 +12,12 @@ const { Search } = Input;
 const { Option } = Select;
 interface Account {
   id: string;
-  xeroId:string;
-  quickBooksId:string;
+  xeroId: string;
+  quickBooksId: string;
   name: string;
+  externalId: string;
   accountType: string;
+  active: boolean;
   accountSubType: string;
   currentBalance: number;
   currencyName: string;
@@ -37,6 +39,7 @@ export const Customer = () => {
   const [quickbooksLoading, setQuickBooksLoading] = useState<boolean>(false);
   const [xeroLoading, setXeroLoading] = useState<boolean>(false);
   const [sourceFilter, setSourceFilter] = useState<string>("");
+  const [showactive, setShowactive] = useState(true);
   const [sortInfo, setSortInfo] = useState<SortInfo>({
     field: "name",
     order: "ascend",
@@ -51,7 +54,8 @@ export const Customer = () => {
         searchText,
         sortInfo.field,
         sortInfo.order === "descend" ? "desc" : "asc",
-        sourceFilter
+        sourceFilter,
+        showactive
       );
 
       setData(result.data.data);
@@ -65,15 +69,14 @@ export const Customer = () => {
 
   useEffect(() => {
     fetchData();
-  }, [page, pageSize, searchText, sortInfo, sourceFilter]);
-  
+  }, [page, pageSize, searchText, sortInfo, sourceFilter, showactive]);
   useEffect(() => {
     setPage(1);
     setPageSize(10);
     setSortInfo({ field: "name", order: "ascend" });
     setSearchText("");
-  }, [sourceFilter]);
-  
+  }, [sourceFilter, showactive]);
+
 
   const handleTableChange = (
     pagination: TablePaginationConfig,
@@ -101,9 +104,10 @@ export const Customer = () => {
       }
       const response = await customerService.fetchCustomer(platform);
       if (response.status === 200) {
+        message.success(response.message);
         fetchData();
       } else {
-        message.error("Failed to download accounts.");
+        message.error("Failed to download.");
       }
     } catch (error) {
       console.error("Failed to download accounts:", error);
@@ -118,19 +122,29 @@ export const Customer = () => {
     }
   };
 
-  const handleDelete = async (id: string, platform: string) => {
+  const toggleCustomerActiveStatus = async (record: Account, isActive: boolean, platform: string) => {
     try {
-      await customerService.deleteCustomer(id, platform);
+      if (platform === "Xero" && isActive) {
+        message.error("Xero does not support activating customers once archived.");
+        return;
+      }
+      const status = platform === "QuickBooks" ? isActive.toString() : isActive ? "ACTIVE" : "ARCHIVED";
+      await customerService.updateCustomerStatus(
+        record.externalId,
+        platform,
+        status
+      );
+
       fetchData();
-    } catch (error) {
-      message.error("Failed to delete customer.");
-      console.error("Delete error:", error);
+    } catch (err) {
+      console.error("Failed to update status:", err);
     }
   };
 
+
   const { connectedAccounts } = useAuth();
   const columns: ColumnsType<Account> = [
-    { title: "Name", dataIndex: "displayName", key: "name", sorter: true,width: 200, },
+    { title: "Name", dataIndex: "displayName", key: "name", sorter: true, width: 200, },
     { title: "Email", dataIndex: "emailAddress", key: "email", sorter: true },
     {
       title: "Address", dataIndex: "addressLine1", key: "addressLine1"
@@ -144,25 +158,45 @@ export const Customer = () => {
     {
       title: "Phone", dataIndex: "phoneNumber", key: "phoneNumber", sorter: true
     },
-    { title: "Source System", dataIndex: "sourceSystem", key: "sourceSystem" ,width: 150, },
-    { title: "Last Updated", dataIndex: "lastUpdatedUtc", key: "lastUpdated", sorter: true,render: (text) => new Date(text).toLocaleString(), width: 240, },
+    { title: "Source System", dataIndex: "sourceSystem", key: "sourceSystem", width: 150, },
+    { title: "Last Updated", dataIndex: "lastUpdatedUtc", key: "lastUpdated", sorter: false, render: (text) => new Date(text).toLocaleString(), width: 230, },
     {
       title: "Actions",
       key: "actions",
+      width: 100,
       render: (text, record) => (
-        <div style={{ display: "flex", gap: 5 }}>
-          <Button type="link" onClick={() => { openDrawer(record); }}>
-            <EditOutlined />
-          </Button>
-          <Popconfirm
-            title="Are you sure to delete this customer?"
-            onConfirm={() => handleDelete(record.sourceSystem == "QuickBooks" ? record.quickBooksId : record.xeroId, record.sourceSystem)}
-            okText="Yes"
-            cancelText="No"
-          >
-            <Button type="link" danger icon={<DeleteOutlined />} />
-          </Popconfirm>
+        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+          {record.active ? (
+            <>
+              <Button type="link" onClick={() => openDrawer(record)} icon={<EditOutlined />} />
+              <Popconfirm
+                title={`Are you sure you want to ${record.active ? 'deactivate' : 'activate'} this customer?`}
+                onConfirm={() => toggleCustomerActiveStatus(record, !record.active, record.sourceSystem)}
+                okText="Yes"
+                cancelText="No"
+              >
+                <Switch
+                  checked={record.active}
+                  size="small"
+                />
+              </Popconfirm>
+            </>
+          ) : (
+            <Popconfirm
+              title={`Are you sure you want to ${record.active ? 'deactivate' : 'activate'} this customer?`}
+              onConfirm={() => toggleCustomerActiveStatus(record, !record.active, record.sourceSystem)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Switch
+                checked={record.active}
+                size="small"
+                loading={loading}
+              />
+            </Popconfirm>
+          )}
         </div>
+
       ),
     }
 
@@ -173,7 +207,7 @@ export const Customer = () => {
   const [form] = Form.useForm();
   const [drawerLoading, setDrawerLoading] = useState(false);
   const openDrawer = (customer?: any) => {
-
+    console.log(customer, "openDrawer");
     setEditingCustomer(customer ? { ...customer } : null);
     setDrawerVisible(true);
   };
@@ -186,7 +220,7 @@ export const Customer = () => {
       setDrawerLoading(true);
       console.log(values, platform);
       if (editingCustomer) {
-        await customerService.editCustomer(values, platform);
+        await customerService.editCustomer(values, editingCustomer.externalId, platform);
       } else {
         await customerService.addCustomer(values, platform);
       }
@@ -198,13 +232,14 @@ export const Customer = () => {
       setDrawerLoading(false);
     }
   };
+
   return (
     <div className="p-6">
 
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 0 }}>
         <Title level={2}>Customers</Title>
         <Button type="primary" onClick={() => openDrawer()} style={{ marginBottom: 10 }}>
-          Add Customer </Button>
+          <PlusOutlined /> Add Customer </Button>
       </div>
 
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
@@ -215,14 +250,14 @@ export const Customer = () => {
             setPage(1);
             setSearchText(value);
           }}
-          style={{ width: 300 }}
+          style={{ width: 250 }}
         />
 
-        <div>
+        <div style={{ display: "flex", gap: 10 }}>
           <Select
             defaultValue=""
             onChange={(value) => setSourceFilter(value)}
-            style={{ width: 180, marginRight: 8 }}
+            style={{ width: 100 }}
           >
             <Option value="">All</Option>
             <Option value="QuickBooks">QuickBooks</Option>
@@ -233,27 +268,30 @@ export const Customer = () => {
             connectedAccounts.quickbooks && (
               <Button
                 type="primary"
-                icon={<DownloadOutlined />}
+                icon={<SyncOutlined />}
                 onClick={() => downloadAccounts("QuickBooks")}
                 loading={quickbooksLoading}
-                style={{ marginLeft: 16 }}
+
               >
-                Sync from QuickBooks
+                QuickBooks
               </Button>
             )}
           {connectedAccounts.xero && (
             <Button
               type="primary"
-              icon={<DownloadOutlined />}
+              icon={<SyncOutlined />}
               onClick={() => downloadAccounts("Xero")}
               loading={xeroLoading}
-              style={{ marginLeft: 16 }}
+
             >
-              Sync from Xero
+              Xero
             </Button>
           )
           }
-
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Switch checked={showactive} onChange={setShowactive} />
+            <span>Show Active</span>
+          </div>
         </div>
       </div>
 

@@ -1,407 +1,312 @@
-import React, { useEffect, useState } from "react";
-import {
-  Table,
-  Input,
-  Button,
-  Space,
-  Drawer,
-  Popconfirm,
-  message,
-  Checkbox,
-  Modal,
-} from "antd";
-import {
-  PlusOutlined,
-  EditOutlined,
-  DeleteOutlined,
-  DownloadOutlined,
-  ShopOutlined,
-} from "@ant-design/icons";
-import {
-  Vendor,
-  PaginationState,
-  SortState,
-  VendorFormValues,
-  Category,
-  Product,
-  Customer,
-} from "../interfaces";
-import {
-  activateVendor,
-  addVendor,
-  deleteVendor,
-  fetchVendors,
-  syncVendors,
-  updateVendor,
-} from "../services/vendorService";
-import VendorForm from "../components/VendorForm";
-import BillForm from "../components/BillForm";
-import {
-  fetchCategories,
-  fetchCustomers,
-  fetchProducts,
-} from "../services/billService";
+import { Table, Typography, Input, Button, message, Select, Form, Popconfirm, Switch } from "antd";
+import { useEffect, useState } from "react";
+import { EditOutlined, PlusOutlined, SyncOutlined } from "@ant-design/icons";
+import { ColumnsType, TablePaginationConfig } from "antd/es/table";
+import type { SortOrder } from "antd/es/table/interface";
+import { vendorService } from "../services/vendorService";
+import { useAuth } from "../context/AuthContext";
+import { VendorDrawer } from "../components/VendorDrawer";
 
-export const Vendors: React.FC = () => {
-  const [vendors, setVendors] = useState<Vendor[]>([]);
-  const [pagination, setPagination] = useState<PaginationState>({
-    current: 1,
-    pageSize: 10,
-    total: 0,
-    totalPages: 0,
-  });
-  const [sort, setSort] = useState<SortState>({ column: "", direction: "" });
-  const [search, setSearch] = useState<string>("");
+const { Title } = Typography;
+const { Search } = Input;
+const { Option } = Select;
+
+interface Vendor {
+  id: number;
+  externalId: string;
+  sourceSystem: string;
+  displayName: string;
+  companyName: string;
+  email: string;
+  phone: string;
+  website: string;
+  active: boolean;
+  balance: number;
+  vendor1099: boolean;
+  createTime: string;
+  lastUpdatedTime: string;
+}
+
+interface SortInfo {
+  field: string;
+  order: SortOrder;
+}
+
+export const Vendor = () => {
+  const [data, setData] = useState<Vendor[]>([]);
+  const [totalRecords, setTotalRecords] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(false);
-  const [formLoading, setFormLoading] = useState<boolean>(false);
-  const [syncLoading, setSyncLoading] = useState<boolean>(false);
-  const [drawerVisible, setDrawerVisible] = useState<boolean>(false);
-  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
-  const [showActive, setShowActive] = useState<boolean>(true);
-  const [selectedVendor, setSelectedVendor] = useState<string>("");
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [searchText, setSearchText] = useState<string>("");
+  const [quickbooksLoading, setQuickBooksLoading] = useState<boolean>(false);
+  const [xeroLoading, setXeroLoading] = useState<boolean>(false);
+  const [sourceFilter, setSourceFilter] = useState<string>("");
+  const [showActive, setShowActive] = useState(true);
+  const [sortInfo, setSortInfo] = useState<SortInfo>({
+    field: "displayName",
+    order: "ascend",
+  });
 
-  const fetchVendorsAll = async (
-    activeStatus = showActive,
-    resetPage = false
-  ) => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const { current, pageSize } = pagination;
-      const { column, direction } = sort;
-
-      const response = await fetchVendors({
-        page: resetPage ? 1 : current,
+      const result = await vendorService.getAllVendors(
+        page,
         pageSize,
-        search,
-        sortColumn: column,
-        sortDirection: direction,
-        pagination: true,
-        active: activeStatus,
-      });
+        searchText,
+        sortInfo.field,
+        sortInfo.order === "descend" ? "desc" : "asc",
+        sourceFilter,
+        showActive
+      );
 
-      setVendors(response.data || []);
-      setPagination((prev) => ({
-        ...prev,
-        current: resetPage ? 1 : current,
-        total: response.totalRecords ?? 0,
-        totalPages: response.totalPages ?? 0,
-      }));
+      setData(result.data.data);
+      setTotalRecords(result.data.totalRecords);
     } catch (error) {
-      if (error instanceof Error) {
-        message.error(error.message);
-      } else {
-        message.error("Failed to load vendors.");
-      }
+      console.error("Error fetching vendors:", error);
     } finally {
       setLoading(false);
     }
   };
+
   useEffect(() => {
-    loadReferenceData();
-  }, []);
+    fetchData();
+  }, [page, pageSize, searchText, sortInfo, sourceFilter, showActive]);
+
   useEffect(() => {
-    fetchVendorsAll();
-  }, [pagination.current, pagination.pageSize, sort, search]);
+    setPage(1);
+    setPageSize(10);
+    setSortInfo({ field: "displayName", order: "ascend" });
+    setSearchText("");
+  }, [sourceFilter, showActive]);
 
-  const handleTableChange = (paginationInfo: any, _: any, sorter: any) => {
-    setPagination((prev) => ({
-      ...prev,
-      current: paginationInfo.current,
-      pageSize: paginationInfo.pageSize,
-    }));
-    setSort({
-      column: sorter.field || "",
-      direction:
-        sorter.order === "ascend"
-          ? "asc"
-          : sorter.order === "descend"
-          ? "desc"
-          : "",
-    });
-  };
+  const handleTableChange = (
+    pagination: TablePaginationConfig,
+    filters: Record<string, (string | number | boolean)[] | null>,
+    sorter: any
+  ) => {
+    setPage(pagination.current || 1);
+    setPageSize(pagination.pageSize || 10);
 
-  const handleDelete = async (id: string) => {
-    try {
-      const response = await deleteVendor(id);
-      if (response.error === null) {
-        message.success("Vendor deleted.");
-        fetchVendorsAll();
-      } else {
-        const obj = JSON.parse(response.error || "{}");
-        message.error(obj.Fault?.Error[0]?.Detail || "Failed to delete vendor");
-      }
-    } catch (error) {
-      if (error instanceof Error) {
-        message.error(error.message);
-      } else {
-        message.error("Failed to delete vendor.");
-      }
+    if (sorter.order) {
+      setSortInfo({
+        field: sorter.field,
+        order: sorter.order,
+      });
     }
   };
 
-  const handleFormSubmit = async (values: VendorFormValues) => {
-    setFormLoading(true);
+  const downloadVendors = async (platform: string) => {
     try {
-      if (editingVendor) {
-        const response = await updateVendor(editingVendor.vId, values);
-        if (response.error === null) {
-          message.success("Vendor updated successfully.");
-          closeDrawer();
-          fetchVendorsAll();
-        } else {
-          message.error("Failed to update vendor.");
-        }
+      if (platform === "QuickBooks") {
+        setQuickBooksLoading(true);
+      }
+      else {
+        setXeroLoading(true);
+      }
+      const response = await vendorService.fetchVendors(platform);
+      if (response.status === 200) {
+        message.success(response.message);
+        fetchData();
       } else {
-        const response = await addVendor(values);
-        if (response.error === null) {
-          message.success("Vendor added successfully.");
-          closeDrawer();
-          fetchVendorsAll();
-        } else {
-          message.error("Failed to add vendor.");
-        }
+        message.error("Failed to download vendors.");
       }
     } catch (error) {
-      if (error instanceof Error) {
-        message.error(error.message);
-      } else {
-        message.error("Operation failed.");
-      }
+      console.error("Failed to download vendors:", error);
+      message.error("Failed to download vendors.");
     } finally {
-      setFormLoading(false);
+      if (platform === "QuickBooks") {
+        setQuickBooksLoading(false);
+      }
+      else {
+        setXeroLoading(false);
+      }
     }
   };
 
-  const handleMarkActive = async (id: string) => {
+  const toggleVendorActiveStatus = async (record: Vendor, isActive: boolean, platform: string) => {
     try {
-      const response = await activateVendor(id);
-      if (response.error === null) {
-        message.success("Vendor marked as active.");
-        fetchVendorsAll();
-      } else {
-        message.error("Failed to mark vendor as active.");
+      if (platform === "Xero" && isActive) {
+        message.error("Xero does not support activating vendors once archived.");
+        return;
       }
-    } catch (error) {
-      if (error instanceof Error) {
-        message.error(error.message);
-      } else {
-        message.error("Failed to mark vendor as active.");
-      }
+      const status = platform === "QuickBooks" ? isActive.toString() : isActive ? "ACTIVE" : "ARCHIVED";
+      await vendorService.updateVendorStatus(
+        record.externalId,
+        platform,
+        status
+      );
+
+      fetchData();
+    } catch (err) {
+      console.error("Failed to update status:", err);
     }
   };
 
-  const handleSyncVendors = async () => {
-    setSyncLoading(true);
-    try {
-      const response = await syncVendors();
-      console.log(response);
-      message.success("Vendors synced successfully!");
-      fetchVendorsAll();
-    } catch (error) {
-      if (error instanceof Error) {
-        message.error(error.message);
-      } else {
-        message.error("Failed to sync vendors.");
-      }
-    } finally {
-      setSyncLoading(false);
-    }
-  };
-
-  const handleActiveToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.checked;
-    setShowActive(newValue);
-    fetchVendorsAll(newValue, true);
-  };
-
-  const closeDrawer = () => {
-    setDrawerVisible(false);
-    setEditingVendor(null);
-  };
-
-  const columns = [
-    {
-      title: "Display Name",
-      dataIndex: "displayName",
-      sorter: true,
-    },
-    {
-      title: "Balance",
-      dataIndex: "balance",
-      sorter: true,
-    },
-    {
-      title: "Currency",
-      dataIndex: "currencyName",
-    },
-    {
-      title: "Phone",
-      dataIndex: "primaryPhone",
-    },
-    {
-      title: "Email",
-      dataIndex: "primaryEmailAddr",
-      sorter: true,
+  const { connectedAccounts } = useAuth();
+  const columns: ColumnsType<Vendor> = [
+    { title: "Name", dataIndex: "displayName", key: "displayName", sorter: true, width: 200 },
+    { title: "Company", dataIndex: "companyName", key: "companyName", sorter: true },
+    { title: "Email", dataIndex: "email", key: "email", sorter: true },
+    { title: "Phone", dataIndex: "phone", key: "phone", sorter: true },
+    
+    { title: "Balance", dataIndex: "balance", key: "balance", sorter: true, render: (val) => `$${val.toFixed(2)}` },
+   
+    { title: "Source System", dataIndex: "sourceSystem", key: "sourceSystem", width: 140 },
+    { 
+      title: "Last Updated", 
+      dataIndex: "lastUpdatedTime", 
+      key: "lastUpdatedTime", 
+      sorter: true, 
+      render: (text) => new Date(text).toLocaleString(),
+      width: 200 
     },
     {
       title: "Actions",
       key: "actions",
-      render: (_: unknown, record: Vendor) => (
-        <Space>
-          {record.active === false ? (
-            <Button type="primary" onClick={() => handleMarkActive(record.vId)}>
-              Mark Active
-            </Button>
-          ) : (
+      width: 100,
+      render: (text, record) => (
+        <div style={{ display: "flex", gap: 5, alignItems: "center" }}>
+          {record.active ? (
             <>
-              <Button
-                icon={<EditOutlined />}
-                onClick={() => {
-                  setEditingVendor(record);
-                  setDrawerVisible(true);
-                }}
-              />
+              <Button type="link" onClick={() => openDrawer(record)} icon={<EditOutlined />} />
               <Popconfirm
-                title="Delete this vendor?"
-                onConfirm={() => handleDelete(record.vId)}
+                title={`Are you sure you want to ${record.active ? 'deactivate' : 'activate'} this vendor?`}
+                onConfirm={() => toggleVendorActiveStatus(record, !record.active, record.sourceSystem)}
+                okText="Yes"
+                cancelText="No"
               >
-                <Button icon={<DeleteOutlined />} danger />
+                <Switch
+                  checked={record.active}
+                  size="small"
+                />
               </Popconfirm>
-              <Button
-                icon={<ShopOutlined />}
-                onClick={() => {
-                  showModal();
-                  console.log(record);
-                  setSelectedVendor(record.id);
-                }}
-              />
             </>
+          ) : (
+            <Popconfirm
+              title={`Are you sure you want to ${record.active ? 'deactivate' : 'activate'} this vendor?`}
+              onConfirm={() => toggleVendorActiveStatus(record, !record.active, record.sourceSystem)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Switch
+                checked={record.active}
+                size="small"
+                loading={loading}
+              />
+            </Popconfirm>
           )}
-        </Space>
+        </div>
       ),
-    },
-  ];
-  const loadReferenceData = async () => {
-    try {
-      const [categoriesData, productsData, customersData] = await Promise.all([
-        // fetchVendors(),
-        fetchCategories(),
-        fetchProducts(),
-        fetchCustomers(),
-      ]);
-      setCategories(categoriesData);
-      setProducts(productsData);
-      setCustomers(customersData);
-    } catch (error) {
-      console.error("Error loading reference data:", error);
     }
-  };
-  const [modalVisible, setModalVisible] = useState<boolean>(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [customers, setCustomers] = useState<Customer[]>([]);
+  ];
 
-  const showModal = () => {
-    setModalVisible(true);
-  };
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+  const [form] = Form.useForm();
+  const [drawerLoading, setDrawerLoading] = useState(false);
 
-  const handleCancel = () => {
-    setModalVisible(false);
+  const openDrawer = (vendor?: Vendor) => {
+    setEditingVendor(vendor ? { ...vendor } : null);
+    setDrawerVisible(true);
   };
 
-  const handleFormSuccess = () => {
-    setModalVisible(false);
+  const closeDrawer = () => {
+    setDrawerVisible(false);
+    form.resetFields();
+  };
+
+  const handleDrawerSubmit = async (values: any, platform: string) => {
+    try {
+      setDrawerLoading(true);
+      if (editingVendor) {
+        await vendorService.editVendor(values, editingVendor.externalId, platform);
+      } else {
+        await vendorService.addVendor(values, platform);
+      }
+      fetchData();
+      closeDrawer();
+    } catch (error) {
+      message.error("Operation failed.");
+    } finally {
+      setDrawerLoading(false);
+    }
   };
 
   return (
-    <div>
-      <Space
-        style={{
-          marginBottom: 16,
-          display: "flex",
-          justifyContent: "flex-end",
-        }}
-      >
-        <Input.Search
-          placeholder="Search vendors..."
-          onSearch={(value) => {
-            setSearch(value);
-            setPagination((prev) => ({ ...prev, current: 1 }));
-          }}
-          allowClear
-          style={{ width: 300 }}
-        />
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setDrawerVisible(true)}
-        >
-          Add Vendor
+    <div className="p-6">
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 0 }}>
+        <Title level={2}>Vendors</Title>
+        <Button type="primary" onClick={() => openDrawer()} style={{ marginBottom: 10 }}>
+          <PlusOutlined /> Add Vendor
         </Button>
-        <Button
-          type="primary"
-          icon={<DownloadOutlined />}
-          onClick={handleSyncVendors}
-          loading={syncLoading}
-          block
-        >
-          Sync Vendors
-        </Button>
+      </div>
 
-        <Checkbox onChange={handleActiveToggle} checked={showActive}>
-          Active Vendors
-        </Checkbox>
-      </Space>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 16 }}>
+        <Search
+          placeholder="Search vendors"
+          allowClear
+          onSearch={(value) => {
+            setPage(1);
+            setSearchText(value);
+          }}
+          style={{ width: 250 }}
+        />
+
+        <div style={{ display: "flex", gap: 10 }}>
+          <Select
+            defaultValue=""
+            onChange={(value) => setSourceFilter(value)}
+            style={{ width: 100 }}
+          >
+            <Option value="">All</Option>
+            <Option value="QuickBooks">QuickBooks</Option>
+            <Option value="Xero">Xero</Option>
+          </Select>
+
+          {connectedAccounts.quickbooks && (
+            <Button
+              type="primary"
+              icon={<SyncOutlined />}
+              onClick={() => downloadVendors("QuickBooks")}
+              loading={quickbooksLoading}
+            >
+              QuickBooks
+            </Button>
+          )}
+          
+          
+          
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Switch checked={showActive} onChange={setShowActive} />
+            <span>Show Active</span>
+          </div>
+        </div>
+      </div>
 
       <Table
         columns={columns}
-        dataSource={vendors}
+        dataSource={data}
+        loading={loading}
         rowKey="id"
         pagination={{
-          current: pagination.current,
-          pageSize: pagination.pageSize,
-          total: pagination.total,
+          current: page,
+          pageSize,
+          total: totalRecords,
           showSizeChanger: true,
-          pageSizeOptions: ["10", "20", "30"],
         }}
-        loading={loading}
         onChange={handleTableChange}
       />
 
-      <Drawer
-        title={editingVendor ? "Edit Vendor" : "Add Vendor"}
-        open={drawerVisible}
+      <VendorDrawer
+        visible={drawerVisible}
         onClose={closeDrawer}
-        width={600}
-      >
-        <VendorForm
-          vendor={editingVendor || undefined}
-          onFinish={handleFormSubmit}
-          loading={formLoading}
-        />
-      </Drawer>
-
-      <Modal
-        title="Add New Bill"
-        open={modalVisible}
-        onCancel={handleCancel}
-        width={1000}
-        footer={null}
-      >
-        <BillForm
-          selectedVendorFromVendor={selectedVendor}
-          vendors={vendors}
-          categories={categories}
-          products={products}
-          customers={customers}
-          onCancel={handleCancel}
-          onSuccess={handleFormSuccess}
-          loading={loading}
-          setLoading={setLoading}
-        />
-      </Modal>
+        onSubmit={handleDrawerSubmit}
+        vendor={editingVendor}
+        form={form}
+        loading={drawerLoading}
+      />
     </div>
   );
 };
-
-export default Vendors;

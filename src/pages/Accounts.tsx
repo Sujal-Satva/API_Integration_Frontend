@@ -1,6 +1,6 @@
 import { Table, Typography, Input, Button, message, Select } from "antd";
 import { useEffect, useState } from "react";
-import { DownloadOutlined } from "@ant-design/icons";
+import { DownloadOutlined, SyncOutlined } from "@ant-design/icons";
 import { ColumnsType, TablePaginationConfig } from "antd/es/table";
 import type { SortOrder } from "antd/es/table/interface";
 import { accountService } from "../services/accountService";
@@ -44,17 +44,17 @@ export const Accounts = () => {
 
   const fetchData = async () => {
     setLoading(true);
-    const realmId = localStorage.getItem("qb_realm_id");
+    
 
     try {
       const result = await accountService.getAllAccounts(
-        realmId,
         page,
         pageSize,
         searchText,
         sortInfo.field,
         sortInfo.order === "descend" ? "desc" : "asc",
-        sourceFilter // Pass the source filter to the API
+        true, 
+        sourceFilter 
       );
 
       setData(result.data.data);
@@ -150,14 +150,14 @@ export const Accounts = () => {
             setPage(1);
             setSearchText(value);
           }}
-          style={{ width: 300 }}
+          style={{ width: 250 }}
         />
 
-        <div>
+        <div style={{ display: "flex", gap: 10 }}>
           <Select
             defaultValue=""
             onChange={(value) => setSourceFilter(value)}
-            style={{ width: 180, marginRight: 16 }}
+            style={{ width: 180, marginRight: 5 }}
           >
             <Option value="">All</Option>
             <Option value="QuickBooks">QuickBooks</Option>
@@ -168,23 +168,23 @@ export const Accounts = () => {
             connectedAccounts.quickbooks && (
               <Button
                 type="primary"
-                icon={<DownloadOutlined />}
+                icon={<SyncOutlined />}
                 onClick={() => downloadAccounts("QuickBooks")}
                 loading={quickbooksLoading}
-                style={{ marginLeft: 16 }}
+
               >
-                Sync from QuickBooks
+                QuickBooks
               </Button>
             )}
           {connectedAccounts.xero && (
             <Button
               type="primary"
-              icon={<DownloadOutlined />}
+              icon={<SyncOutlined />}
               onClick={() => downloadAccounts("Xero")}
               loading={xeroLoading}
-              style={{ marginLeft: 16 }}
+
             >
-              Sync from Xero
+              Xero
             </Button>
           )
           }
